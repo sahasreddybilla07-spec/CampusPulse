@@ -33,7 +33,7 @@ export default function Hero() {
 
         <div className="hero-buttons">
           <Link
-            to="/complaints"
+            to="/submit-complaint"
             className={`btn-primary ${hoverSubmit ? 'active' : ''}`}
             onMouseEnter={() => setHoverSubmit(true)}
             onMouseLeave={() => setHoverSubmit(false)}

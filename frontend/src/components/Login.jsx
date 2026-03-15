@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
 import Navbar from './Navbar';
 import './Login.css';
 
 export default function Login() {
+  const location = useLocation();
+  const isStudent = location.pathname.includes('/student');
+  const isUser = location.pathname.includes('/user');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -51,8 +55,12 @@ export default function Login() {
             <div className="login-logo">
               <Logo />
             </div>
-            <h1 className="login-title">Welcome Back</h1>
-            <p className="login-subtitle">Sign in to your CampusPulse account</p>
+            <h1 className="login-title">{isUser ? 'User Login' : 'Student Login'}</h1>
+            <p className="login-subtitle">
+              {isUser
+                ? 'Sign in with your user credentials'
+                : 'Sign in with your student credentials'}
+            </p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>

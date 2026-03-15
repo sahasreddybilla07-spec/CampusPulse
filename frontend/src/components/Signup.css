@@ -268,8 +268,8 @@
 }
 
 .form-input::placeholder {
-  color: var(--color-tan);
-  opacity: 0.7;
+  color: #6b7280;
+  opacity: 1;
 }
 
 /* INPUT ICON */

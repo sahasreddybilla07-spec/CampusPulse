@@ -255,8 +255,10 @@
   border-radius: 12px;
   font-size: 1rem;
   font-family: inherit;
-  background: rgba(255, 255, 255, 0.8);
-  color: var(--color-text-dark);
+
+  background: #ffffff;   /* stronger background */
+  color: #111827;        /* darker text */
+
   transition: all 0.3s ease;
   outline: none;
 }
@@ -268,9 +270,14 @@
 }
 
 .form-input::placeholder {
-  color: var(--color-tan);
-  opacity: 0.7;
+  color: #6b7280;
+  opacity: 1;
 }
+
+.form-input::-webkit-input-placeholder { color: #6b7280; }
+.form-input::-moz-placeholder { color: #6b7280; }
+.form-input:-ms-input-placeholder { color: #6b7280; }
+.form-input::-ms-input-placeholder { color: #6b7280; }
 
 /* INPUT ICON */
 

@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
 import Navbar from './Navbar';
 import './Signup.css';
 
 export default function Signup() {
+  const location = useLocation();
+  const isStudent = location.pathname.includes('/student');
+  const isUser = location.pathname.includes('/user');
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,8 +63,12 @@ export default function Signup() {
             <div className="signup-logo">
               <Logo />
             </div>
-            <h1 className="signup-title">Create Account</h1>
-            <p className="signup-subtitle">Join CampusPulse and get started</p>
+            <h1 className="signup-title">{isUser ? 'User Register' : 'Student Register'}</h1>
+            <p className="signup-subtitle">
+              {isUser
+                ? 'Create your user account'
+                : 'Create your student account'}
+            </p>
           </div>
 
           <form className="signup-form" onSubmit={handleSubmit}>
