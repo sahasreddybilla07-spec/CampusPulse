@@ -4,15 +4,19 @@ import Navbar from './Navbar';
 import './SubmitComplaint.css';
 
 export default function SubmitComplaint() {
+  
 
   const navigate = useNavigate();
 
+  // TODO: re-enable auth guard once login flow is complete
+  /*
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
       navigate('/login');
     }
   }, [navigate]);
+  */
 
   const [formData, setFormData] = useState({
     title: '',

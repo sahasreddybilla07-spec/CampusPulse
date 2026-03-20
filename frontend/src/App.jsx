@@ -5,6 +5,7 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import SubmitComplaint from './components/SubmitComplaint';
+import Analytics from './components/Analytics';
 
 function App() {
   return (
@@ -13,7 +14,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/complaints" element={<div>Complaints Page - Coming Soon</div>} />
-          <Route path="/analytics" element={<div>Analytics Page - Coming Soon</div>} />
+          <Route path="/analytics" element={<Analytics />} />
           {/* Student section (existing login/register behavior) */}
           <Route path="/student/login" element={<Login />} />
           <Route path="/student/register" element={<Signup />} />

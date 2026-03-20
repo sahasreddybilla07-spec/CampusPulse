@@ -268,10 +268,16 @@
 .complaint-card {
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(25px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  border: 2px solid rgba(255, 255, 255, 0.6);
+
   border-radius: 24px;
   padding: 3rem;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(255, 255, 255, 0.25);
+
   animation: cardFadeIn 1s ease-out;
 }
 
@@ -752,6 +758,104 @@
     opacity: 1;
   }
 }
+
+/* FORCE ALL FORM TEXT TO WHITE */
+
+.submit-complaint-page .form-label,
+.submit-complaint-page label,
+.submit-complaint-page h1,
+.submit-complaint-page h2,
+.submit-complaint-page h3,
+.submit-complaint-page h4,
+.submit-complaint-page h5,
+.submit-complaint-page h6,
+.submit-complaint-page p,
+.submit-complaint-page span {
+  color: #ffffff !important;
+}
+
+/* Specifically fix Category + Block labels */
+.submit-complaint-page .form-group label {
+  color: #ffffff !important;
+}
+
+/* Fix category titles */
+.category-label {
+  color: #ffffff !important;
+}
+
+/* Optional: improve visibility slightly */
+.submit-complaint-page .form-label {
+  opacity: 0.95;
+}
+
+/* PREMIUM BORDER FOR INPUT + TEXTAREA */
+
+.submit-complaint-page .form-input,
+.submit-complaint-page .form-textarea {
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+}
+
+.submit-complaint-page .form-input:focus,
+.submit-complaint-page .form-textarea:focus {
+  border-color: #ffffff;
+  box-shadow: 
+    0 0 20px rgba(255, 255, 255, 0.4),
+    0 0 40px rgba(255, 255, 255, 0.2);
+}
+
+
+/* PREMIUM CATEGORY CARDS */
+
+.category-card {
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.category-card:hover {
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.3),
+    0 0 25px rgba(255, 255, 255, 0.25);
+}
+
+.category-card.selected {
+  border-color: #ffffff;
+  box-shadow: 
+    0 0 25px rgba(255, 255, 255, 0.5),
+    0 0 50px rgba(255, 255, 255, 0.2);
+}
+
+
+/* PREMIUM FILE UPLOAD */
+
+.file-label {
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.file-label:hover {
+  box-shadow: 
+    0 0 25px rgba(255, 255, 255, 0.3);
+}
+
+
+/* OPTIONAL: ICON GLOW */
+
+.input-icon,
+.textarea-icon,
+.file-icon {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+}
+
+.submit-complaint-page .form-input::placeholder,
+.submit-complaint-page .form-textarea::placeholder {
+  color: #ffffff;
+  opacity: 0.9;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+}
+
+
 
 /* RESPONSIVE DESIGN */
 
