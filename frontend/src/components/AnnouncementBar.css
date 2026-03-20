@@ -32,7 +32,7 @@
 .announcement-wrapper{
   display:flex;
   width:max-content;
-  animation:ticker 13s linear infinite;
+  animation:ticker 20s linear infinite;
 }
 
 

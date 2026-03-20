@@ -66,20 +66,20 @@ export default function Login() {
             </div>
 
             <h1 className="login-title">
-              {isUser ? 'User Login' : 'Student Login'}
+              {isUser ? 'User Login' : 'Login'}
             </h1>
 
             <p className="login-subtitle">
               {isUser
                 ? 'Sign in with your user credentials'
-                : 'Sign in with your student credentials'}
+                : 'Sign in with your credentials'}
             </p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>
 
             <div className="form-group">
-              <label className="form-label">Email Address</label>
+              <label className="form-label">Username</label>
 
               <div className={`input-wrapper ${emailFocused ? 'focused' : ''}`}>
                 <input
@@ -89,7 +89,7 @@ export default function Login() {
                   onFocus={() => setEmailFocused(true)}
                   onBlur={() => setEmailFocused(false)}
                   className="form-input"
-                  placeholder="Enter your email"
+                  placeholder="Enter your id"
                   required
                 />
                 <div className="input-icon">✉</div>
