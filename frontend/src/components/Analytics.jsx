@@ -14,10 +14,21 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts';
-import { FiTrendingUp, FiCheckCircle, FiClock, FiAlertTriangle, FiSun, FiMoon } from 'react-icons/fi';
+
+import {
+  FiTrendingUp,
+  FiCheckCircle,
+  FiClock,
+  FiAlertTriangle,
+  FiSun,
+  FiMoon
+} from 'react-icons/fi';
+
 import { MdOutlineDashboard } from 'react-icons/md';
 import Navbar from './Navbar';
 import './Analytics.css';
+
+// ================= DATA =================
 
 const summaryData = [
   { id: 'total', title: 'Total Complaints', value: 342, icon: <FiTrendingUp />, color: '#5de0ff', glow: '#5de0ff66' },
@@ -63,47 +74,73 @@ const heatmapData = [
 const recentComplaints = [
   { id: 1, title: 'Water leak in block A', category: 'Maintenance', status: 'Resolved' },
   { id: 2, title: 'WiFi dropouts in library', category: 'Infrastructure', status: 'Pending' },
-  { id: 7, title: 'Broken desk in classroom', category: 'Hostel', status: 'Resolved' },
+  { id: 3, title: 'Broken desk in classroom', category: 'Hostel', status: 'Resolved' },
   { id: 4, title: 'Projector malfunction', category: 'Academics', status: 'Pending' }
 ];
 
-const palette = ['#1EB8F1', '#ED6A5A'];
+// ================= COMPONENT =================
 
 export default function Analytics() {
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const totalComplaints = useMemo(() => summaryData.find((item) => item.id === 'total').value, []);
+
+  const totalComplaints = useMemo(
+    () => summaryData.find((item) => item.id === 'total').value,
+    []
+  );
 
   return (
     <section className={`analytics-page ${isDarkMode ? 'dark-mode' : 'light-mode'}`}>
+      
       <Navbar />
+
       <div className="analytics-shell">
+
+        {/* HEADER */}
         <header className="analytics-header">
           <div>
             <h1>Analytics Dashboard</h1>
             <p>Deep insights and actionable metrics from the complaint pipeline.</p>
           </div>
+
           <div className="stats-group">
             <div className="stats-badge">
               <MdOutlineDashboard />
               <span>{totalComplaints} Total Entries</span>
             </div>
-            <button
-              className="theme-toggle-btn"
-              onClick={() => setIsDarkMode(prev => !prev)}
-              type="button"
-              aria-label="toggle light dark mode"
-            >
-              {isDarkMode ? <><FiSun /> Light</> : <><FiMoon /> Dark</>}
-            </button>
+ <div className="theme-toggle">
+  <input
+    type="checkbox"
+    id="theme-switch"
+    checked={!isDarkMode}
+    onChange={() => setIsDarkMode(prev => !prev)}
+  />
+  <label htmlFor="theme-switch" className="toggle-label">
+    <span className="toggle-ball"></span>
+    <span className="icon sun"><FiSun /></span>
+<span className="icon moon"><FiMoon /></span>
+  </label>
+</div>
           </div>
         </header>
 
+        {/* SUMMARY CARDS */}
         <div className="summary-row">
           {summaryData.map((card) => (
-            <div key={card.id} className="summary-card" style={{ borderColor: card.color }}>
-              <div className="summary-icon" style={{ color: card.color, boxShadow: `0 0 20px ${card.glow}` }}>
+            <div
+              key={card.id}
+              className="summary-card"
+              style={{ borderColor: card.color }}
+            >
+              <div
+                className="summary-icon"
+                style={{
+                  color: card.color,
+                  boxShadow: `0 0 20px ${card.glow}`
+                }}
+              >
                 {card.icon}
               </div>
+
               <div className="summary-info">
                 <small>{card.title}</small>
                 <h2>{card.value}</h2>
@@ -112,35 +149,45 @@ export default function Analytics() {
           ))}
         </div>
 
+        {/* CHARTS */}
         <div className="charts-grid">
+
+          {/* BAR */}
           <div className="glass-card chart-card">
             <h3>Complaints by Category</h3>
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={categoryData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#3f4b5b" />
-                <XAxis dataKey="category" stroke="#dde6f3" />
-                <YAxis stroke="#dde6f3" />
-                <Tooltip contentStyle={{ background: '#121b2b', borderColor: '#2f4d8f', color: '#f7f9ff' }} />
-                <Bar dataKey="value" fill="#38b2ff" radius={[8, 8, 0, 0]} />
+              <BarChart data={categoryData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#38bdf8" radius={[10, 10, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
+          {/* LINE */}
           <div className="glass-card chart-card">
-            <h3>Complaints Trend (Last 7 Days)</h3>
+            <h3>Weekly Complaint Trend</h3>
             <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={trendData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(255,255,255,0.1)" strokeDasharray="4 4" />
-                <XAxis dataKey="period" stroke="#dde6f3" />
-                <YAxis stroke="#dde6f3" />
-                <Tooltip contentStyle={{ background: '#121b2b', borderColor: '#2f4d8f', color: '#f7f9ff' }} />
-                <Line type="monotone" dataKey="complaints" stroke="#6ee7b7" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="period" />
+                <YAxis />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="complaints"
+                  stroke="#22c55e"
+                  strokeWidth={3}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
+          {/* PIE */}
           <div className="glass-card chart-card">
-            <h3>Resolved vs Pending</h3>
+            <h3>Status Distribution</h3>
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
@@ -149,26 +196,31 @@ export default function Analytics() {
                   nameKey="name"
                   innerRadius={60}
                   outerRadius={90}
-                  paddingAngle={2}
-                  label
                 >
-                  {statusData.map((entry, index) => (
-                    <Cell key={entry.name} fill={entry.name === 'Resolved' ? '#22c55e' : '#f59e0b'} />
+                  {statusData.map((entry) => (
+                    <Cell
+                      key={entry.name}
+                      fill={entry.name === 'Resolved' ? '#22c55e' : '#f59e0b'}
+                    />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: '#121b2b', borderColor: '#2f4d8f', color: '#f7f9ff' }} />
-                <Legend verticalAlign="bottom" height={36} />
+                <Tooltip />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
+
         </div>
 
+        {/* LOWER SECTION */}
         <div className="lower-grid">
+
+          {/* HEATMAP */}
           <div className="glass-card heatmap-card">
-            <h3>Block / Location Complaint Frequency</h3>
+            <h3>Location Heatmap</h3>
             <div className="heatmap-grid">
               {heatmapData.map((item) => (
-                <div key={item.block} className="heatmap-item" style={{ '--heat': item.score + '%' }}>
+                <div key={item.block} className="heatmap-item">
                   <h4>{item.block}</h4>
                   <p>{item.score}%</p>
                 </div>
@@ -176,6 +228,7 @@ export default function Analytics() {
             </div>
           </div>
 
+          {/* ACTIVITY */}
           <div className="glass-card activity-card">
             <h3>Recent Activity</h3>
             <div className="activity-list">
@@ -185,12 +238,17 @@ export default function Analytics() {
                     <h4>{item.title}</h4>
                     <small>{item.category}</small>
                   </div>
-                  <span className={`status-pill ${item.status.toLowerCase()}`}>{item.status}</span>
+
+                  <span className={`status-pill ${item.status.toLowerCase()}`}>
+                    {item.status}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
+
         </div>
+
       </div>
     </section>
   );
