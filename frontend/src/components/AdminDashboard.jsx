@@ -1,85 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import LogoMark from './LogoMark';
+import Logo from './Logo';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import * as adminService from '../services/admin';
+import { getAnalyticsSummary } from '../services/admin';
+import { updateComplaintStatus, updateProfile } from '../services/complaints';
 import './AdminDashboard.css';
 
-/* ─── Constants ─────────────────────────────────────────── */
-const BLOCKS_LIST = ['Block A', 'Block B', 'Block C', 'Block D', 'Library', 'Mess Hall'];
-
-const ALL_COMPLAINTS = [
-  { id: 'CP-001', title: 'Broken water pipe in washroom', category: 'Maintenance',    block: 'Block A',   incharge: 'Mr. Ramesh',  student: 'Rahul Sharma', rollNo: '22CSE1001', date: '2026-03-22', priority: 'High',   status: 'Pending',     sentiment: 'Negative' },
-  { id: 'CP-002', title: 'AC not working in Room 310',   category: 'Maintenance',    block: 'Block B',   incharge: 'Ms. Kavita',  student: 'Priya Patel',  rollNo: '22CSE1042', date: '2026-03-22', priority: 'Medium', status: 'In Progress', sentiment: 'Negative' },
-  { id: 'CP-003', title: 'Noisy construction near hostel', category: 'Infrastructure', block: 'Block A',  incharge: 'Mr. Ramesh',  student: 'Arjun Mehta', rollNo: '22CSE1078', date: '2026-03-21', priority: 'Low',    status: 'Pending',     sentiment: 'Negative' },
-  { id: 'CP-004', title: 'Wi-Fi down in reading room',   category: 'Infrastructure', block: 'Block C',   incharge: 'Mr. Suresh',  student: 'Sneha Rao',   rollNo: '22CSE1089', date: '2026-03-21', priority: 'High',   status: 'Resolved',    sentiment: 'Neutral'  },
-  { id: 'CP-005', title: 'Mess food quality poor',       category: 'Hostel',         block: 'Mess Hall', incharge: 'Mr. Venkat',  student: 'Karan Singh', rollNo: '22CSE1103', date: '2026-03-20', priority: 'Medium', status: 'Resolved',    sentiment: 'Negative' },
-  { id: 'CP-006', title: 'Elevator out of service',      category: 'Infrastructure', block: 'Block B',   incharge: 'Ms. Kavita',  student: 'Divya Nair',  rollNo: '22CSE1115', date: '2026-03-23', priority: 'High',   status: 'Pending',     sentiment: 'Negative' },
-  { id: 'CP-007', title: 'Ceiling fan makes loud noise', category: 'Maintenance',    block: 'Block A',   incharge: 'Mr. Ramesh',  student: 'Amit Kumar',  rollNo: '22CSE1056', date: '2026-03-23', priority: 'Low',    status: 'In Progress', sentiment: 'Neutral'  },
-  { id: 'CP-008', title: 'Library computers crashing',   category: 'Academics',      block: 'Library',   incharge: 'Ms. Priya',   student: 'Ritu Verma',  rollNo: '22CSE1067', date: '2026-03-20', priority: 'Medium', status: 'Pending',     sentiment: 'Negative' },
-  { id: 'CP-009', title: 'Lab projector not working',    category: 'Academics',      block: 'Block C',   incharge: 'Mr. Suresh',  student: 'Aryan Das',   rollNo: '22CSE1091', date: '2026-03-19', priority: 'High',   status: 'Resolved',    sentiment: 'Positive' },
-  { id: 'CP-010', title: 'Hostel gate locked early',     category: 'Hostel',         block: 'Block D',   incharge: 'Ms. Lakshmi', student: 'Meena T',     rollNo: '22CSE1122', date: '2026-03-18', priority: 'Medium', status: 'Resolved',    sentiment: 'Neutral'  },
+/* ─── Constants ───────────────────────────────── */
+const BLOCKS_LIST = [
+  'Block A', 'Block B', 'Block C', 'Block D', 'Block E', 'Block F', 'Block G', 'Block H', 
+  'Block I', 'Block J', 'Block K', 'Block L', 'Block M', 'Block N',
+  'Library', 'Mess Hall', 'Common Area'
 ];
 
-const INITIAL_INCHARGES = [
-  {
-    id: 1, name: 'Mr. Ramesh Kumar', email: 'ramesh@campuspulse.edu',
-    phone: '9876543210', designation: 'Senior In-Charge', block: 'Block A',
-    complaints: 3, resolved: 1, status: 'Active', avgRating: 3.8,
-    feedback: [
-      { by: 'Admin',    role: 'admin',   rating: 4, comment: 'Good response time but docs need improvement.', date: '2026-03-20', anonymous: false },
-      { by: 'Student',  role: 'student', rating: 3, comment: 'Slow follow-up on the water pipe complaint.',   date: '2026-03-22', anonymous: true  },
-      { by: 'Dr. Nair', role: 'admin',   rating: 4, comment: 'Shows initiative on preventive maintenance.',  date: '2026-03-24', anonymous: false },
-    ],
-  },
-  {
-    id: 2, name: 'Ms. Kavita Singh', email: 'kavita@campuspulse.edu',
-    phone: '9812345678', designation: 'In-Charge', block: 'Block B',
-    complaints: 2, resolved: 0, status: 'Active', avgRating: 2.5,
-    feedback: [
-      { by: 'Student', role: 'student', rating: 2, comment: 'Elevator issue ignored for 3 days.', date: '2026-03-23', anonymous: true },
-      { by: 'Admin',   role: 'admin',   rating: 3, comment: 'Communication could be better.',      date: '2026-03-21', anonymous: false },
-    ],
-  },
-  {
-    id: 3, name: 'Mr. Suresh Babu', email: 'suresh@campuspulse.edu',
-    phone: '9823456789', designation: 'In-Charge', block: 'Block C',
-    complaints: 2, resolved: 2, status: 'Active', avgRating: 4.5,
-    feedback: [
-      { by: 'Student', role: 'student', rating: 5, comment: 'Fixed the projector same day!',    date: '2026-03-19', anonymous: false },
-      { by: 'Admin',   role: 'admin',   rating: 4, comment: 'Excellent resolution rate — keep it up.', date: '2026-03-21', anonymous: false },
-    ],
-  },
-  {
-    id: 4, name: 'Ms. Priya Menon', email: 'priya@campuspulse.edu',
-    phone: '9834567890', designation: 'Library In-Charge', block: 'Library',
-    complaints: 1, resolved: 0, status: 'Active', avgRating: 3.0,
-    feedback: [
-      { by: 'Student', role: 'student', rating: 3, comment: 'Yet to receive an update on the computer issue.', date: '2026-03-20', anonymous: true },
-    ],
-  },
-  {
-    id: 5, name: 'Mr. Venkat Rao', email: 'venkat@campuspulse.edu',
-    phone: '9845678901', designation: 'Mess In-Charge', block: 'Mess Hall',
-    complaints: 1, resolved: 1, status: 'Inactive', avgRating: 3.2,
-    feedback: [
-      { by: 'Student', role: 'student', rating: 3, comment: 'Issues eventually fixed but took too long.', date: '2026-03-20', anonymous: true },
-    ],
-  },
-  {
-    id: 6, name: 'Ms. Lakshmi D', email: 'lakshmi@campuspulse.edu',
-    phone: '9856789012', designation: 'In-Charge', block: 'Block D',
-    complaints: 1, resolved: 1, status: 'Active', avgRating: 4.2,
-    feedback: [
-      { by: 'Admin',   role: 'admin',   rating: 4, comment: 'Proactive in resolving hostel issues.',  date: '2026-03-18', anonymous: false },
-      { by: 'Student', role: 'student', rating: 4, comment: 'Quick resolution on gate timing issue.', date: '2026-03-19', anonymous: false },
-    ],
-  },
-];
-
-const CATEGORY_STATS = [
-  { label: 'Maintenance',    count: 3, color: '#667eea', pct: 30 },
-  { label: 'Infrastructure', count: 3, color: '#3b82f6', pct: 30 },
-  { label: 'Hostel',         count: 2, color: '#f59e0b', pct: 20 },
-  { label: 'Academics',      count: 2, color: '#10b981', pct: 20 },
+const NAV_ITEMS = [
+  { id: 'overview',   icon: '📊', label: 'Overview'        },
+  { id: 'complaints', icon: '📋', label: 'All Complaints'  },
+  { id: 'users',      icon: '👥', label: 'In-Charges'      },
+  { id: 'profile',    icon: '👤', label: 'My Profile'      },
+  { id: 'analytics',  icon: '📈', label: 'Analytics'       },
+  { id: 'settings',   icon: '⚙️',  label: 'Settings'        },
 ];
 
 const PRIORITY_COLOR = { High: '#ef4444', Medium: '#f59e0b', Low: '#10b981' };
@@ -87,24 +29,6 @@ const PRIORITY_BG    = { High: '#fef2f2', Medium: '#fffbeb', Low: '#ecfdf5' };
 const STATUS_COLOR   = { Pending: '#f59e0b', 'In Progress': '#3b82f6', Resolved: '#10b981' };
 const STATUS_BG      = { Pending: '#fffbeb', 'In Progress': '#eff6ff', Resolved: '#ecfdf5' };
 const SENTIMENT_COLOR = { Positive: '#10b981', Neutral: '#f59e0b', Negative: '#ef4444' };
-
-const TREND = [
-  { day: 'Mon', raised: 5, resolved: 3 },
-  { day: 'Tue', raised: 8, resolved: 6 },
-  { day: 'Wed', raised: 3, resolved: 5 },
-  { day: 'Thu', raised: 10, resolved: 7 },
-  { day: 'Fri', raised: 6, resolved: 9 },
-  { day: 'Sat', raised: 4, resolved: 4 },
-  { day: 'Sun', raised: 2, resolved: 2 },
-];
-
-const NAV_ITEMS = [
-  { id: 'overview',   icon: '📊', label: 'Overview' },
-  { id: 'complaints', icon: '📋', label: 'All Complaints' },
-  { id: 'users',      icon: '👥', label: 'In-Charges' },
-  { id: 'analytics',  icon: '📈', label: 'Analytics' },
-  { id: 'settings',   icon: '⚙️',  label: 'Settings' },
-];
 
 /* ─── Performance scoring ───────────────────────────────── */
 function calcPerf(ic) {
@@ -148,47 +72,154 @@ function unassignedBlocks(incharges) {
    ═══════════════════════════════════════════════════════════ */
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { user, profile, signOut, refreshProfile } = useAuth();
 
-  /* existing state */
-  const [complaints, setComplaints] = useState(ALL_COMPLAINTS);
+  /* Main Data */
+  const [complaints, setComplaints] = useState([]);
+  const [incharges, setIncharges]   = useState([]);
+  const [analytics, setAnalytics]   = useState(null);
+  const [isLoading, setIsLoading]   = useState(true);
+
+  /* Dashboard State */
   const [activeNav,  setActiveNav]  = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [filter, setFilter]  = useState('All');
   const [search, setSearch]  = useState('');
   const [selected, setSelected] = useState(null);
-
-  /* in-charge state */
-  const [incharges, setIncharges]   = useState(INITIAL_INCHARGES);
   const [usersTab,  setUsersTab]    = useState('assignments');
 
-  /* modals */
+  /* Modals */
   const [showAddIC,       setShowAddIC]       = useState(false);
-  const [reassignTarget,  setReassignTarget]  = useState(null); // ic object
-  const [removeTarget,    setRemoveTarget]    = useState(null); // ic object
-  const [feedbackTarget,  setFeedbackTarget]  = useState(null); // ic object
+  const [reassignTarget,  setReassignTarget]  = useState(null);
+  const [removeTarget,    setRemoveTarget]    = useState(null);
+  const [feedbackTarget,  setFeedbackTarget]  = useState(null);
+  const [generatedCreds,  setGeneratedCreds]  = useState(null); // for showing temp password
 
-  /* form state */
+  /* Form state */
   const blankIC = { name:'', email:'', phone:'', designation:'', block: BLOCKS_LIST[0] };
   const [newIC, setNewIC] = useState(blankIC);
   const [reassignBlock, setReassignBlock] = useState('');
   const [fbForm, setFbForm] = useState({ rating: 0, comment: '', anonymous: false });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /* helpers */
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
+  /* Profile Tab */
+  const [editMode, setEditMode] = useState(false);
+  const [editProfile, setEditProfile] = useState({});
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (profile) setEditProfile(profile);
+  }, [profile]);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const [allC, allI, summary] = await Promise.all([
+        adminService.getAllComplaints(),
+        adminService.getAllIncharges(),
+        getAnalyticsSummary()
+      ]);
+      setComplaints(allC || []);
+      setIncharges(allI || []);
+      setAnalytics(summary);
+    } catch (err) {
+      console.error('Error loading admin data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const handleLogout = async () => {
+    await signOut();
     navigate('/student/login');
   };
 
-  const updateStatus = (id, s) => {
-    setComplaints(p => p.map(c => c.id === id ? { ...c, status: s } : c));
-    if (selected?.id === id) setSelected(p => ({ ...p, status: s }));
+  const updateStatus = async (id, s) => {
+    try {
+      await updateComplaintStatus(id, s);
+      setComplaints(p => p.map(c => c.id === id ? { ...c, status: s } : c));
+      if (selected?.id === id) setSelected(p => ({ ...p, status: s }));
+    } catch (err) {
+      alert('Failed to update status: ' + err.message);
+    }
+  };
+
+  const addIncharge = async () => {
+    if (!newIC.name.trim() || !newIC.email.trim()) return;
+    setIsSubmitting(true);
+    try {
+      const result = await adminService.createIncharge({
+        name: newIC.name,
+        email: newIC.email,
+        designation: newIC.designation || 'In-Charge',
+        block: newIC.block
+      });
+      setGeneratedCreds(result);
+      await loadData();
+      setNewIC(blankIC);
+      setShowAddIC(false);
+    } catch (err) {
+      alert('Failed to create in-charge: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const removeIncharge = async (id) => {
+    try {
+      await adminService.removeIncharge(id);
+      setIncharges(p => p.filter(i => i.id !== id));
+      setRemoveTarget(null);
+    } catch (err) {
+      alert('Failed to remove in-charge: ' + err.message);
+    }
+  };
+
+  const toggleStatus = async (id, currentIsActive) => {
+    try {
+      await updateProfile(id, { is_active: !currentIsActive });
+      setIncharges(p => p.map(i => i.id === id ? { ...i, is_active: !currentIsActive } : i));
+    } catch (err) {
+      alert('Failed to toggle status: ' + err.message);
+    }
+  };
+
+  const doReassign = async () => {
+    if (!reassignBlock) return;
+    try {
+      await updateProfile(reassignTarget.id, { assigned_block: reassignBlock });
+      setIncharges(p => p.map(i => i.id === reassignTarget.id ? { ...i, assigned_block: reassignBlock } : i));
+      setReassignTarget(null);
+      setReassignBlock('');
+    } catch (err) {
+      alert('Failed to reassign: ' + err.message);
+    }
+  };
+
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const { id, created_at, updated_at, role, email, password_ref, ...updatable } = editProfile;
+      await updateProfile(user.id, updatable);
+      await refreshProfile();
+      setEditMode(false);
+    } catch (err) {
+      alert('Failed to update profile: ' + err.message);
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const filtered = complaints.filter(c => {
     const mF = filter === 'All' || c.status === filter;
     const mS = c.title.toLowerCase().includes(search.toLowerCase()) ||
-               c.student.toLowerCase().includes(search.toLowerCase()) ||
+               (c.student?.name || '').toLowerCase().includes(search.toLowerCase()) ||
                c.block.toLowerCase().includes(search.toLowerCase());
     return mF && mS;
   });
@@ -197,55 +228,18 @@ export default function AdminDashboard() {
   const pending  = complaints.filter(c => c.status === 'Pending').length;
   const progress = complaints.filter(c => c.status === 'In Progress').length;
   const resolved = complaints.filter(c => c.status === 'Resolved').length;
-  const resRate  = Math.round((resolved / total) * 100);
-  const maxTrend = Math.max(...TREND.map(t => Math.max(t.raised, t.resolved)));
+  const resRate  = total > 0 ? Math.round((resolved / total) * 100) : 0;
 
-  /* in-charge handlers */
-  const addIncharge = () => {
-    if (!newIC.name.trim() || !newIC.email.trim()) return;
-    const nextId = Math.max(...incharges.map(i => i.id), 0) + 1;
-    setIncharges(p => [...p, {
-      id: nextId, ...newIC,
-      complaints: 0, resolved: 0, status: 'Active', avgRating: 0, feedback: [],
-    }]);
-    setNewIC(blankIC);
-    setShowAddIC(false);
-  };
+  if (isLoading || !profile) {
+    return (
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#0f172a', color:'#fff' }}>
+        Loading System Dashboard…
+      </div>
+    );
+  }
 
-  const removeIncharge = (id) => {
-    setIncharges(p => p.filter(i => i.id !== id));
-    setRemoveTarget(null);
-  };
+  const initials = profile.name ? profile.name.split(' ').map(n=>n[0]).join('').toUpperCase() : 'A';
 
-  const toggleStatus = (id) => {
-    setIncharges(p => p.map(i => i.id === id ? { ...i, status: i.status === 'Active' ? 'Inactive' : 'Active' } : i));
-  };
-
-  const doReassign = () => {
-    if (!reassignBlock) return;
-    setIncharges(p => p.map(i => i.id === reassignTarget.id ? { ...i, block: reassignBlock } : i));
-    setReassignTarget(null);
-    setReassignBlock('');
-  };
-
-  const submitFeedback = () => {
-    if (fbForm.rating === 0) return;
-    setIncharges(p => p.map(ic => {
-      if (ic.id !== feedbackTarget.id) return ic;
-      const newFb = {
-        by: fbForm.anonymous ? 'Anonymous' : 'Admin',
-        role: 'admin', rating: fbForm.rating,
-        comment: fbForm.comment,
-        date: new Date().toISOString().split('T')[0],
-        anonymous: fbForm.anonymous,
-      };
-      const allFb   = [...ic.feedback, newFb];
-      const avgRating = parseFloat((allFb.reduce((s, f) => s + f.rating, 0) / allFb.length).toFixed(1));
-      return { ...ic, feedback: allFb, avgRating };
-    }));
-    setFbForm({ rating: 0, comment: '', anonymous: false });
-    setFeedbackTarget(null);
-  };
 
   /* ── Render ─────────────────────────────────────────────── */
   return (
@@ -254,7 +248,9 @@ export default function AdminDashboard() {
       {/* ── Sidebar ──────────────────────────────────── */}
       <aside className={`ad-sidebar ${sidebarOpen ? 'ad-sidebar--open' : 'ad-sidebar--collapsed'}`}>
         <div className="ad-sidebar-brand">
-          <LogoMark variant="colored" showText={sidebarOpen} size={36} />
+          {sidebarOpen
+            ? <div style={{ transform: 'scale(0.48)', transformOrigin: 'left center', marginLeft: '-0.5rem' }}><Logo /></div>
+            : <LogoMark variant="colored" showText={false} size={36} />}
         </div>
         <nav className="ad-nav">
           {NAV_ITEMS.map(item => (
@@ -317,9 +313,9 @@ export default function AdminDashboard() {
             </span>
             <div className="ad-notif-btn">🔔<span className="ad-notif-dot">{pending}</span></div>
             <div className="ad-admin-chip">
-              <div className="ad-admin-avatar">A</div>
+              <div className="ad-admin-avatar">{initials}</div>
               <div className="ad-admin-info">
-                <span className="ad-admin-name">Administrator</span>
+                <span className="ad-admin-name">{profile.name}</span>
                 <span className="ad-admin-role">Super Admin</span>
               </div>
             </div>
@@ -349,44 +345,42 @@ export default function AdminDashboard() {
 
             <div className="ad-charts-row">
               <div className="ad-chart-card ad-chart-card--wide">
-                <h3 className="ad-chart-title">Weekly Complaint Trend</h3>
-                <p className="ad-chart-sub">Complaints raised vs resolved this week</p>
-                <div className="ad-bar-chart">
-                  {TREND.map(t => (
-                    <div key={t.day} className="ad-bar-group">
-                      <div className="ad-bar-pair">
-                        <div className="ad-bar ad-bar--raised"   style={{ height: `${(t.raised/maxTrend)*100}%` }}><span className="ad-bar-tip">{t.raised}</span></div>
-                        <div className="ad-bar ad-bar--resolved" style={{ height: `${(t.resolved/maxTrend)*100}%` }}><span className="ad-bar-tip">{t.resolved}</span></div>
+                <h3 className="ad-chart-title">Complaint Distribution by Block</h3>
+                <p className="ad-chart-sub">Real-time heat map of campus issues</p>
+                <div className="ad-bar-chart" style={{ height: '240px', alignItems: 'flex-end' }}>
+                  {analytics?.block_stats?.slice(0, 10).map(b => (
+                    <div key={b.block} className="ad-bar-group">
+                      <div className="ad-bar ad-bar--raised" style={{ height: `${(b.count / (analytics.total || 1)) * 100 * 2}%`, minHeight:'4px' }}>
+                        <span className="ad-bar-tip">{b.count}</span>
                       </div>
-                      <span className="ad-bar-day">{t.day}</span>
+                      <span className="ad-bar-day" style={{ fontSize: '0.65rem' }}>{b.block.replace('Block ', '')}</span>
                     </div>
                   ))}
-                </div>
-                <div className="ad-bar-legend">
-                  <span><span className="ad-legend-dot" style={{background:'#667eea'}}/>Raised</span>
-                  <span><span className="ad-legend-dot" style={{background:'#10b981'}}/>Resolved</span>
                 </div>
               </div>
 
               <div className="ad-chart-card">
-                <h3 className="ad-chart-title">By Category</h3>
-                <p className="ad-chart-sub">Distribution across complaint types</p>
+                <h3 className="ad-chart-title">Status Distribution</h3>
+                <p className="ad-chart-sub">Current resolution progress</p>
                 <div className="ad-cat-list">
-                  {CATEGORY_STATS.map(cat => (
-                    <div key={cat.label} className="ad-cat-item">
-                      <div className="ad-cat-header"><span className="ad-cat-name">{cat.label}</span><span className="ad-cat-count">{cat.count}</span></div>
-                      <div className="ad-cat-bar-bg"><div className="ad-cat-bar-fill" style={{ width: `${cat.pct}%`, background: cat.color }}/></div>
+                  {[
+                    { label: 'Pending', count: pending, color: '#f59e0b' },
+                    { label: 'In Progress', count: progress, color: '#3b82f6' },
+                    { label: 'Resolved', count: resolved, color: '#10b981' },
+                  ].map(s => (
+                    <div key={s.label} className="ad-cat-item">
+                      <div className="ad-cat-header"><span className="ad-cat-name">{s.label}</span><span className="ad-cat-count">{s.count}</span></div>
+                      <div className="ad-cat-bar-bg"><div className="ad-cat-bar-fill" style={{ width: `${total > 0 ? (s.count/total)*100 : 0}%`, background: s.color }}/></div>
                     </div>
                   ))}
                 </div>
-                <h3 className="ad-chart-title" style={{marginTop:'1.5rem'}}>Sentiment Analysis</h3>
+                <h3 className="ad-chart-title" style={{marginTop:'1.5rem'}}>Recent Activity</h3>
                 <div className="ad-sentiment-row">
                   {[
-                    { label:'Negative', count: complaints.filter(c=>c.sentiment==='Negative').length, color:'#ef4444', bg:'#fef2f2' },
-                    { label:'Neutral',  count: complaints.filter(c=>c.sentiment==='Neutral').length,  color:'#f59e0b', bg:'#fffbeb' },
-                    { label:'Positive', count: complaints.filter(c=>c.sentiment==='Positive').length, color:'#10b981', bg:'#ecfdf5' },
+                    { label:'Total', count: total, color:'#667eea', bg:'#eef2ff' },
+                    { label:'Resolved', count: resolved, color:'#10b981', bg:'#ecfdf5' },
                   ].map(s => (
-                    <div key={s.label} className="ad-sent-card" style={{ background: s.bg }}>
+                    <div key={s.label} className="ad-sent-card" style={{ background: s.bg, flex: 1 }}>
                       <span className="ad-sent-val" style={{ color: s.color }}>{s.count}</span>
                       <span className="ad-sent-label" style={{ color: s.color }}>{s.label}</span>
                     </div>
@@ -450,7 +444,7 @@ export default function AdminDashboard() {
                 <div className="ad-assign-toolbar">
                   <div>
                     <h3 className="ad-assign-title">Block Assignment Manager</h3>
-                    <p className="ad-assign-sub">{incharges.filter(i=>i.status==='Active').length} active in-charges · {unassignedBlocks(incharges).length} unassigned blocks</p>
+                    <p className="ad-assign-sub">{incharges.filter(i=>i.is_active).length} active in-charges · {unassignedBlocks(incharges).length} unassigned blocks</p>
                   </div>
                   <button className="ad-add-ic-btn" onClick={() => setShowAddIC(true)}>
                     + Add In-Charge
@@ -460,7 +454,7 @@ export default function AdminDashboard() {
                 {/* Block → In-charge mapping grid */}
                 <div className="ad-block-assign-grid">
                   {BLOCKS_LIST.map(block => {
-                    const ic = incharges.find(i => i.block === block && i.status === 'Active');
+                    const ic = incharges.find(i => i.assigned_block === block && i.is_active);
                     return (
                       <div key={block} className={`ad-block-card ${!ic ? 'ad-block-card--empty' : ''}`}>
                         <div className="ad-block-card-header">
@@ -474,7 +468,7 @@ export default function AdminDashboard() {
                         {ic ? (
                           <>
                             <div className="ad-block-ic-info">
-                              <div className="ad-block-ic-avatar">{ic.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
+                              <div className="ad-block-ic-avatar">{ic.name ? ic.name.split(' ').map(n=>n[0]).join('').slice(0,2) : '??'}</div>
                               <div>
                                 <p className="ad-block-ic-name">{ic.name}</p>
                                 <p className="ad-block-ic-desig">{ic.designation}</p>
@@ -490,7 +484,7 @@ export default function AdminDashboard() {
                               <button className="ad-bact-btn ad-bact-btn--reassign" onClick={() => { setReassignTarget(ic); setReassignBlock(block); }}>
                                 🔄 Reassign
                               </button>
-                              <button className="ad-bact-btn ad-bact-btn--suspend" onClick={() => toggleStatus(ic.id)}>
+                              <button className="ad-bact-btn ad-bact-btn--suspend" onClick={() => toggleStatus(ic.id, ic.is_active)}>
                                 ⏸ Suspend
                               </button>
                               <button className="ad-bact-btn ad-bact-btn--remove" onClick={() => setRemoveTarget(ic)}>
@@ -512,15 +506,15 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Suspended in-charges */}
-                {incharges.some(i => i.status === 'Inactive') && (
+                {incharges.some(i => !i.is_active) && (
                   <div className="ad-suspended-section">
                     <h4 className="ad-suspended-title">⏸ Suspended In-Charges</h4>
                     <div className="ad-suspended-list">
-                      {incharges.filter(i => i.status === 'Inactive').map(ic => (
+                      {incharges.filter(i => !i.is_active).map(ic => (
                         <div key={ic.id} className="ad-suspended-row">
                           <span className="ad-susp-name">{ic.name}</span>
-                          <span className="ad-susp-block">{ic.block}</span>
-                          <button className="ad-bact-btn ad-bact-btn--reassign" onClick={() => toggleStatus(ic.id)}>▶ Reactivate</button>
+                          <span className="ad-susp-block">{ic.assigned_block}</span>
+                          <button className="ad-bact-btn ad-bact-btn--reassign" onClick={() => toggleStatus(ic.id, ic.is_active)}>▶ Reactivate</button>
                           <button className="ad-bact-btn ad-bact-btn--remove" onClick={() => setRemoveTarget(ic)}>🗑 Remove</button>
                         </div>
                       ))}
@@ -555,11 +549,11 @@ export default function AdminDashboard() {
                         {/* Header */}
                         <div className="ad-perf-card-top">
                           <div className="ad-block-ic-avatar" style={{width:44,height:44,fontSize:'1rem'}}>
-                            {ic.name.split(' ').map(n=>n[0]).join('').slice(0,2)}
+                            {ic.name ? ic.name.split(' ').map(n=>n[0]).join('').slice(0,2) : '??'}
                           </div>
                           <div style={{flex:1,minWidth:0}}>
                             <p className="ad-block-ic-name">{ic.name}</p>
-                            <p className="ad-block-ic-desig">{ic.block} · {ic.designation}</p>
+                            <p className="ad-block-ic-desig">{ic.assigned_block} · {ic.designation}</p>
                           </div>
                           <span className="ad-status-badge" style={{background:badgeBg, color:badgeColor, border:`1px solid ${badgeColor}22`}}>{badge}</span>
                         </div>
@@ -627,19 +621,90 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* ── PROFILE ────────────────────────────────────── */}
+        {activeNav === 'profile' && (
+          <div className="ad-content">
+            <div className="ad-table-card" style={{ padding: '2.5rem' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'2.5rem' }}>
+                <div>
+                  <h2 style={{ margin:0, fontSize:'1.75rem' }}>Administrator Profile</h2>
+                  <p style={{ color:'#64748b', marginTop:'0.5rem' }}>Manage your account settings and personal information</p>
+                </div>
+                <button 
+                  className={`ad-action-btn ${editMode ? 'ad-action-btn--close' : 'ad-action-btn--progress'}`}
+                  style={{ padding:'0.75rem 1.5rem' }}
+                  onClick={() => setEditMode(!editMode)}
+                >
+                  {editMode ? '✕ Cancel' : '✏️ Edit Profile'}
+                </button>
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(350px, 1fr))', gap:'2.5rem' }}>
+                {[
+                  { label: 'Full Name', key: 'name', icon: '👤' },
+                  { label: 'Admin Level', key: 'admin_level', icon: '🔑', readOnly: true },
+                  { label: 'Email', key: 'email', icon: '📧', readOnly: true },
+                  { label: 'Phone', key: 'phone', icon: '📱' },
+                ].map(f => (
+                  <div key={f.key} style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+                    <label style={{ fontSize:'0.9rem', color:'#475569', fontWeight:600 }}>{f.icon} {f.label}</label>
+                    {editMode && !f.readOnly ? (
+                      <input 
+                        style={{ padding:'1rem', borderRadius:'12px', border:'1px solid #e2e8f0', outline:'none', fontSize:'1rem' }}
+                        value={editProfile[f.key] || ''}
+                        onChange={e => setEditProfile({...editProfile, [f.key]: e.target.value})}
+                      />
+                    ) : (
+                      <div style={{ padding:'1rem', background:'#f8fafc', borderRadius:'12px', color:'#1e293b', fontWeight:500, fontSize:'1.1rem', border:'1px solid #f1f5f9' }}>
+                        {profile[f.key] || 'Not set'}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {editMode && (
+                <button 
+                  className="ad-action-btn ad-action-btn--resolve" 
+                  style={{ marginTop:'3rem', width:'100%', padding:'1.25rem', fontSize:'1.1rem', fontWeight:600 }}
+                  onClick={saveProfile}
+                  disabled={savingProfile}
+                >
+                  {savingProfile ? 'Saving Changes...' : '💾 Save Changes'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Analytics ──────────────────────────────── */}
-        {activeNav === 'analytics' && (
+        {activeNav === 'analytics' && (() => {
+          // Build weekly trend from actual complaint dates
+          const DAYS_LIST = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+          const trendMap = {};
+          DAYS_LIST.forEach(d => { trendMap[d] = { day: d, raised: 0, resolved: 0 }; });
+          complaints.forEach(c => {
+            const day = DAYS_LIST[new Date(c.created_at || c.date).getDay()];
+            if (trendMap[day]) {
+              trendMap[day].raised++;
+              if (c.status === 'Resolved') trendMap[day].resolved++;
+            }
+          });
+          const trendData = DAYS_LIST.map(d => trendMap[d]);
+          const maxT = Math.max(...trendData.map(t => Math.max(t.raised, t.resolved)), 1);
+
+          return (
           <div className="ad-content">
             <div className="ad-charts-row">
               <div className="ad-chart-card ad-chart-card--wide">
-                <h3 className="ad-chart-title">Full Weekly Trend</h3>
-                <p className="ad-chart-sub">Complaints raised vs resolved — last 7 days</p>
+                <h3 className="ad-chart-title">Weekly Complaint Trend</h3>
+                <p className="ad-chart-sub">Complaints raised vs resolved by day of the week</p>
                 <div className="ad-bar-chart">
-                  {TREND.map(t => (
+                  {trendData.map(t => (
                     <div key={t.day} className="ad-bar-group">
                       <div className="ad-bar-pair">
-                        <div className="ad-bar ad-bar--raised"   style={{ height: `${(t.raised/maxTrend)*100}%` }}><span className="ad-bar-tip">{t.raised}</span></div>
-                        <div className="ad-bar ad-bar--resolved" style={{ height: `${(t.resolved/maxTrend)*100}%` }}><span className="ad-bar-tip">{t.resolved}</span></div>
+                        <div className="ad-bar ad-bar--raised"   style={{ height: `${(t.raised/maxT)*100}%` }}><span className="ad-bar-tip">{t.raised}</span></div>
+                        <div className="ad-bar ad-bar--resolved" style={{ height: `${(t.resolved/maxT)*100}%` }}><span className="ad-bar-tip">{t.resolved}</span></div>
                       </div>
                       <span className="ad-bar-day">{t.day}</span>
                     </div>
@@ -657,7 +722,7 @@ export default function AdminDashboard() {
                   {incharges.filter(u=>u.complaints>0).map(u => (
                     <div key={u.name} className="ad-cat-item">
                       <div className="ad-cat-header">
-                        <span className="ad-cat-name">{u.block}</span>
+                        <span className="ad-cat-name">{u.assigned_block}</span>
                         <span className="ad-cat-count">{u.complaints > 0 ? Math.round((u.resolved/u.complaints)*100) : 0}%</span>
                       </div>
                       <div className="ad-cat-bar-bg">
@@ -686,7 +751,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── Settings ───────────────────────────────── */}
         {activeNav === 'settings' && (
@@ -806,7 +872,7 @@ export default function AdminDashboard() {
               <button className="ad-modal-close" onClick={() => setReassignTarget(null)}>✕</button>
             </div>
             <p style={{padding:'0 1.5rem', fontSize:'0.88rem', color:'#64748b', marginBottom:'1rem'}}>
-              Moving <strong>{reassignTarget.name}</strong> from <strong>{reassignTarget.block}</strong> to:
+              Moving <strong>{reassignTarget.name}</strong> from <strong>{reassignTarget.assigned_block}</strong> to:
             </p>
             <div className="ad-form-group" style={{padding:'0 1.5rem', marginBottom:'1.5rem'}}>
               <label className="ad-form-label">New Block</label>
@@ -831,7 +897,7 @@ export default function AdminDashboard() {
               <button className="ad-modal-close" onClick={() => setRemoveTarget(null)}>✕</button>
             </div>
             <p style={{padding:'0.5rem 1.5rem 1.5rem', fontSize:'0.9rem', color:'#64748b'}}>
-              Are you sure you want to permanently remove <strong>{removeTarget.name}</strong> from <strong>{removeTarget.block}</strong>? This action cannot be undone.
+              Are you sure you want to permanently remove <strong>{removeTarget.name}</strong> from <strong>{removeTarget.assigned_block}</strong>? This action cannot be undone.
             </p>
             <div className="ad-modal-actions">
               <button className="ad-action-btn ad-modal-btn" style={{background:'#ef4444',color:'white'}} onClick={() => removeIncharge(removeTarget.id)}>🗑 Remove Permanently</button>
@@ -841,69 +907,34 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Feedback modal ──────────────────────────────── */}
-      {feedbackTarget && (
-        <div className="ad-modal-overlay" onClick={() => setFeedbackTarget(null)}>
+      {/* ── Generated Credentials Modal ────────────────── */}
+      {generatedCreds && (
+        <div className="ad-modal-overlay" onClick={() => setGeneratedCreds(null)}>
           <div className="ad-modal ad-modal--form" onClick={e => e.stopPropagation()}>
             <div className="ad-modal-header">
               <div>
-                <h2 className="ad-modal-title">Submit Feedback</h2>
-                <p style={{fontSize:'0.82rem',color:'#94a3b8',marginTop:2}}>For {feedbackTarget.name} · {feedbackTarget.block}</p>
+                <h2 className="ad-modal-title" style={{color:'#10b981'}}>✅ In-Charge Created</h2>
+                <p style={{fontSize:'0.82rem',color:'#94a3b8',marginTop:2}}>Credentials successfully generated</p>
               </div>
-              <button className="ad-modal-close" onClick={() => setFeedbackTarget(null)}>✕</button>
+              <button className="ad-modal-close" onClick={() => setGeneratedCreds(null)}>✕</button>
             </div>
-
-            <div style={{padding:'0 1.5rem 1.5rem'}}>
-              {/* Star picker */}
-              <div className="ad-form-group">
-                <label className="ad-form-label">Overall Rating *</label>
-                <div className="ad-star-picker">
-                  <Stars value={fbForm.rating} onSelect={r => setFbForm(p => ({...p, rating:r}))} />
-                  <span className="ad-star-hint">
-                    {fbForm.rating === 0 ? 'Select rating' : ['','Poor','Fair','Good','Very Good','Excellent'][fbForm.rating]}
-                  </span>
-                </div>
-              </div>
-
-              {/* Comment */}
-              <div className="ad-form-group">
-                <label className="ad-form-label">Review Comment</label>
-                <textarea className="ad-form-input ad-form-textarea" rows={3}
-                  placeholder="Describe the in-charge's performance, responsiveness, and professionalism…"
-                  value={fbForm.comment} onChange={e => setFbForm(p => ({...p, comment:e.target.value}))}
-                />
-              </div>
-
-              {/* Anonymous toggle */}
-              <label className="ad-anon-toggle">
-                <input type="checkbox" checked={fbForm.anonymous} onChange={e => setFbForm(p => ({...p, anonymous:e.target.checked}))} />
-                <span>Submit anonymously</span>
-              </label>
-
-              {/* Recommendation preview */}
-              {fbForm.rating > 0 && (() => {
-                const simIC = { ...feedbackTarget, avgRating: fbForm.rating };
-                const { badge, badgeColor, badgeBg } = calcPerf(simIC);
-                return (
-                  <div className="ad-feedback-preview">
-                    <span style={{fontSize:'0.78rem',color:'#94a3b8'}}>Recommendation preview based on this rating:</span>
-                    <span className="ad-status-badge" style={{background:badgeBg,color:badgeColor,border:`1px solid ${badgeColor}22`,marginLeft:8}}>{badge}</span>
-                  </div>
-                );
-              })()}
+            <div style={{padding:'1.5rem', background:'#f0fdf4', margin:'0 1.5rem 1.5rem', borderRadius:'12px', border:'1px solid #bbf7d0'}}>
+               <p style={{marginBottom:'1rem', fontSize:'0.9rem'}}>Please share these credentials with <strong>{generatedCreds.name}</strong>. They will be required to change their password on first login.</p>
+               <div style={{display:'flex', flexDirection:'column', gap:'0.75rem'}}>
+                  <div><span style={{fontWeight:600, width:100, display:'inline-block'}}>Email:</span> <code>{generatedCreds.email}</code></div>
+                  <div><span style={{fontWeight:600, width:100, display:'inline-block'}}>Password:</span> <code style={{fontSize:'1.1rem', color:'#059669', background:'white', padding:'2px 8px', borderRadius:4}}>{generatedCreds.tempPassword}</code></div>
+                  <div><span style={{fontWeight:600, width:100, display:'inline-block'}}>Employee ID:</span> <code>{generatedCreds.employeeId}</code></div>
+                  <div><span style={{fontWeight:600, width:100, display:'inline-block'}}>Block:</span> <code>{generatedCreds.block}</code></div>
+               </div>
             </div>
-
             <div className="ad-modal-actions">
-              <button className="ad-action-btn ad-action-btn--resolve ad-modal-btn"
-                onClick={submitFeedback} disabled={fbForm.rating===0}
-                style={{opacity: fbForm.rating===0 ? 0.5 : 1}}>
-                ✓ Submit Feedback
-              </button>
-              <button className="ad-action-btn ad-action-btn--close ad-modal-btn" onClick={() => setFeedbackTarget(null)}>Cancel</button>
+              <button className="ad-action-btn ad-action-btn--resolve ad-modal-btn" onClick={() => setGeneratedCreds(null)}>Done</button>
             </div>
           </div>
         </div>
       )}
+
+
 
     </div>
   );
@@ -930,11 +961,11 @@ function renderTable(rows, updateStatus, setSelected, showIncharge) {
             <div className="ad-col-complaint">
               <span className="ad-complaint-id">{c.id}</span>
               <span className="ad-complaint-title">{c.title}</span>
-              <span className="ad-complaint-student">👤 {c.student}</span>
+              <span className="ad-complaint-student">👤 {c.student?.name || 'Unknown'}</span>
             </div>
             <span className="ad-tag" style={{ background:'#eef2ff', color:'#667eea' }}>{c.category}</span>
             <span className="ad-col-block">{c.block}</span>
-            {showIncharge && <span className="ad-col-ic">{c.incharge}</span>}
+            {showIncharge && <span className="ad-col-ic">{c.assigned_incharge?.name || 'Unassigned'}</span>}
             <span className="ad-tag" style={{ color: PRIORITY_COLOR[c.priority], background: PRIORITY_BG[c.priority] }}>{c.priority}</span>
             <span className="ad-tag" style={{ color: STATUS_COLOR[c.status],   background: STATUS_BG[c.status] }}>{c.status}</span>
             <div className="ad-actions" onClick={e => e.stopPropagation()}>

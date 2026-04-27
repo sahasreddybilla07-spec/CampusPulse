@@ -1,57 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAnalyticsSummary } from '../services/admin';
 import Navbar from './Navbar';
 import Logo from './Logo';
 import './PublicAnalytics.css';
 
 /* ── Data ───────────────────────────────────── */
-const TREND = [
-  { day: 'Mon', raised: 5,  resolved: 3  },
-  { day: 'Tue', raised: 8,  resolved: 6  },
-  { day: 'Wed', raised: 3,  resolved: 5  },
-  { day: 'Thu', raised: 10, resolved: 7  },
-  { day: 'Fri', raised: 6,  resolved: 9  },
-  { day: 'Sat', raised: 4,  resolved: 4  },
-  { day: 'Sun', raised: 2,  resolved: 2  },
-];
+const CAT_COLORS = ['#667eea', '#3b82f6', '#f59e0b', '#10b981', '#a855f7', '#ef4444', '#06b6d4', '#f97316'];
+const BLOCK_COLORS = ['#667eea','#3b82f6','#10b981','#a855f7','#f59e0b','#ef4444','#06b6d4','#84cc16','#f97316','#ec4899','#8b5cf6','#14b8a6','#f43f5e','#0ea5e9','#d97706','#65a30d'];
 
-const CATEGORIES = [
-  { label: 'Maintenance',    count: 3,  color: '#667eea', pct: 30 },
-  { label: 'Infrastructure', count: 3,  color: '#3b82f6', pct: 30 },
-  { label: 'Hostel',         count: 2,  color: '#f59e0b', pct: 20 },
-  { label: 'Academics',      count: 2,  color: '#10b981', pct: 20 },
-];
+function getChartData(analytics) {
+  if (!analytics) return { categories: [], priorities: [], blocks: [], trend: [] };
 
-const PRIORITY_DATA = [
-  { label: 'High',   count: 4, color: '#ef4444', pct: 40 },
-  { label: 'Medium', count: 4, color: '#f59e0b', pct: 40 },
-  { label: 'Low',    count: 2, color: '#10b981', pct: 20 },
-];
+  const catObj = analytics.byCategory || {};
+  const categories = Object.entries(catObj).map(([label, count], i) => ({
+    label, count: count || 0, color: CAT_COLORS[i % CAT_COLORS.length], 
+    pct: Math.round(((count || 0) / (analytics.total || 1)) * 100)
+  }));
 
-const BLOCK_DATA = [
-  { block: 'Block A',   complaints: 3, resolved: 1, color: '#667eea' },
-  { block: 'Block B',   complaints: 2, resolved: 0, color: '#3b82f6' },
-  { block: 'Block C',   complaints: 2, resolved: 2, color: '#10b981' },
-  { block: 'Block D',   complaints: 1, resolved: 1, color: '#a855f7' },
-  { block: 'Library',   complaints: 1, resolved: 0, color: '#f59e0b' },
-  { block: 'Mess Hall', complaints: 1, resolved: 1, color: '#ef4444' },
-];
+  const priObj = analytics.byPriority || {};
+  const priorities = Object.entries(priObj).map(([label, count]) => ({
+    label, count: count || 0, 
+    color: label === 'High' ? '#ef4444' : label === 'Medium' ? '#f59e0b' : '#10b981',
+    pct: Math.round(((count || 0) / (analytics.total || 1)) * 100)
+  }));
 
-const STATUS_TREND = [
-  { month: 'Nov', pending: 18, inProgress: 8,  resolved: 12 },
-  { month: 'Dec', pending: 22, inProgress: 10, resolved: 15 },
-  { month: 'Jan', pending: 15, inProgress: 12, resolved: 20 },
-  { month: 'Feb', pending: 12, inProgress: 9,  resolved: 25 },
-  { month: 'Mar', pending: 10, inProgress: 6,  resolved: 30 },
-];
+  const blockArr = Array.isArray(analytics.byBlock) ? analytics.byBlock : [];
+  const blocks = blockArr.slice(0, 16).map((b, i) => ({
+    block: b.block || 'Unknown', complaints: b.total || 0, resolved: b.resolved || 0,
+    color: BLOCK_COLORS[i % BLOCK_COLORS.length]
+  }));
 
-const SENTIMENT = [
-  { label: 'Negative', count: 7,  color: '#ef4444', bg: '#fef2f2', emoji: '😡', pct: 70 },
-  { label: 'Neutral',  count: 2,  color: '#f59e0b', bg: '#fffbeb', emoji: '😐', pct: 20 },
-  { label: 'Positive', count: 1,  color: '#10b981', bg: '#ecfdf5', emoji: '😊', pct: 10 },
-];
+  const trend = Array.isArray(analytics.byDay) ? analytics.byDay : [];
 
-const maxTrend = Math.max(...TREND.map(t => Math.max(t.raised, t.resolved)));
-const maxBlock = Math.max(...BLOCK_DATA.map(b => b.complaints));
+  return { categories, priorities, blocks, trend };
+}
 
 /* ── SVG Donut chart helper ─────────────────── */
 function DonutChart({ slices, size = 160, thickness = 32 }) {
@@ -87,23 +69,45 @@ function DonutChart({ slices, size = 160, thickness = 32 }) {
 }
 
 /* ── Heatmap data ───────────────────────────── */
-const HEATMAP = [
-  { block: 'Block A',   Mon:2, Tue:3, Wed:0, Thu:1, Fri:0, Sat:1, Sun:0 },
-  { block: 'Block B',   Mon:0, Tue:2, Wed:1, Thu:3, Fri:1, Sat:0, Sun:0 },
-  { block: 'Block C',   Mon:1, Tue:0, Wed:2, Thu:0, Fri:2, Sat:0, Sun:1 },
-  { block: 'Block D',   Mon:0, Tue:1, Wed:0, Thu:2, Fri:0, Sat:1, Sun:0 },
-  { block: 'Library',   Mon:1, Tue:0, Wed:1, Thu:0, Fri:1, Sat:0, Sun:0 },
-  { block: 'Mess Hall', Mon:0, Tue:1, Wed:0, Thu:1, Fri:1, Sat:0, Sun:0 },
-];
+
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const MAX_HEAT = 3;
 
 export default function PublicAnalytics() {
   const [activeTab, setActiveTab] = useState('overview');
-  const totalComplaints = 10;
-  const totalResolved   = 4;
-  const resRate         = Math.round((totalResolved / totalComplaints) * 100);
-  const avgResTime      = '2.4 days';
+  const [analytics, setAnalytics] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getAnalyticsSummary();
+        setAnalytics(data);
+      } catch (err) {
+        console.error('Failed to load analytics:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (isLoading) {
+    return <div className="pa-loading">Loading Campus Insights…</div>;
+  }
+
+  // Handle empty or failed analytics gracefully
+  const safeAnalytics = analytics && typeof analytics === 'object' ? analytics : { total: 0, resolved: 0, pending: 0, inProgress: 0 };
+
+  const { categories, priorities, blocks, trend } = getChartData(safeAnalytics);
+  const totalComplaints = safeAnalytics.total || 0;
+  const totalResolved   = safeAnalytics.resolved || 0;
+  const resRate         = totalComplaints > 0 ? Math.round((totalResolved / totalComplaints) * 100) : 0;
+  const avgResTime      = safeAnalytics.avgDays ? `${safeAnalytics.avgDays} days` : 'N/A';
+  
+  const maxTrend = trend.length > 0 ? Math.max(...trend.map(t => Math.max(t.raised || 0, t.resolved || 0)), 1) : 1;
+  const maxBlock = blocks.length > 0 ? Math.max(...blocks.map(b => b.complaints || 0), 1) : 1;
+
 
   return (
     <div className="pa-root">
@@ -121,7 +125,7 @@ export default function PublicAnalytics() {
 
           {/* Tab switcher inside hero */}
           <div className="pa-tabs">
-            {['overview','trends','blocks','sentiment'].map(t => (
+            {['overview','trends','blocks'].map(t => (
               <button
                 key={t}
                 className={`pa-tab ${activeTab === t ? 'pa-tab--active' : ''}`}
@@ -166,14 +170,14 @@ export default function PublicAnalytics() {
             <p className="pa-card-sub">Distribution of complaint types</p>
             <div className="pa-donut-wrap">
               <div className="pa-donut-chart">
-                <DonutChart slices={CATEGORIES} size={180} thickness={36} />
+                <DonutChart slices={categories} size={180} thickness={36} />
                 <div className="pa-donut-center">
                   <span className="pa-donut-num">{totalComplaints}</span>
                   <span className="pa-donut-sub">Total</span>
                 </div>
               </div>
               <div className="pa-donut-legend">
-                {CATEGORIES.map(c => (
+                {categories.map(c => (
                   <div key={c.label} className="pa-legend-row">
                     <span className="pa-legend-dot" style={{ background: c.color }} />
                     <span className="pa-legend-label">{c.label}</span>
@@ -191,14 +195,14 @@ export default function PublicAnalytics() {
             <p className="pa-card-sub">High / Medium / Low complaints</p>
             <div className="pa-donut-wrap">
               <div className="pa-donut-chart">
-                <DonutChart slices={PRIORITY_DATA} size={180} thickness={36} />
+                <DonutChart slices={priorities} size={180} thickness={36} />
                 <div className="pa-donut-center">
                   <span className="pa-donut-num">{totalComplaints}</span>
                   <span className="pa-donut-sub">Issues</span>
                 </div>
               </div>
               <div className="pa-donut-legend">
-                {PRIORITY_DATA.map(p => (
+                {priorities.map(p => (
                   <div key={p.label} className="pa-legend-row">
                     <span className="pa-legend-dot" style={{ background: p.color }} />
                     <span className="pa-legend-label">{p.label}</span>
@@ -221,9 +225,9 @@ export default function PublicAnalytics() {
               <div className="pa-donut-chart">
                 <DonutChart
                   slices={[
-                    { label:'Resolved',    count:4, color:'#10b981', pct:40 },
-                    { label:'In Progress', count:2, color:'#3b82f6', pct:20 },
-                    { label:'Pending',     count:4, color:'#f59e0b', pct:40 },
+                    { label:'Resolved',    count: totalResolved, color:'#10b981', pct: Math.round((totalResolved / (totalComplaints || 1)) * 100) },
+                    { label:'In Progress', count: safeAnalytics.inProgress || 0, color:'#3b82f6', pct: Math.round(((safeAnalytics.inProgress || 0) / (totalComplaints || 1)) * 100) },
+                    { label:'Pending',     count: safeAnalytics.pending || 0, color:'#f59e0b', pct: Math.round(((safeAnalytics.pending || 0) / (totalComplaints || 1)) * 100) },
                   ]}
                   size={180} thickness={36}
                 />
@@ -234,9 +238,9 @@ export default function PublicAnalytics() {
               </div>
               <div className="pa-donut-legend">
                 {[
-                  { label:'Resolved',    count:4, color:'#10b981', pct:40 },
-                  { label:'In Progress', count:2, color:'#3b82f6', pct:20 },
-                  { label:'Pending',     count:4, color:'#f59e0b', pct:40 },
+                  { label:'Resolved',    count: totalResolved, color:'#10b981', pct: Math.round((totalResolved / (totalComplaints || 1)) * 100) },
+                  { label:'In Progress', count: safeAnalytics.inProgress || 0, color:'#3b82f6', pct: Math.round(((safeAnalytics.inProgress || 0) / (totalComplaints || 1)) * 100) },
+                  { label:'Pending',     count: safeAnalytics.pending || 0, color:'#f59e0b', pct: Math.round(((safeAnalytics.pending || 0) / (totalComplaints || 1)) * 100) },
                 ].map(s => (
                   <div key={s.label} className="pa-legend-row">
                     <span className="pa-legend-dot" style={{ background: s.color }} />
@@ -251,28 +255,16 @@ export default function PublicAnalytics() {
 
           {/* Monthly resolution progress — second card in Row 2 */}
           <div className="pa-card">
-            <h3 className="pa-card-title">Monthly Resolution Progress</h3>
-            <p className="pa-card-sub">Complaints resolved per month over 5 months</p>
-            <div className="pa-monthly-bars">
-              {STATUS_TREND.map(m => {
-                const maxM = Math.max(...STATUS_TREND.map(x => x.resolved));
-                return (
-                  <div key={m.month} className="pa-monthly-col">
-                    <div className="pa-monthly-bar-wrap">
-                      <div className="pa-monthly-bar" style={{ height: `${(m.resolved/maxM)*100}%` }}>
-                        <span className="pa-monthly-bar-tip">{m.resolved}</span>
-                      </div>
-                    </div>
-                    <span className="pa-monthly-lbl">{m.month}</span>
-                  </div>
-                );
-              })}
-            </div>
+            <h3 className="pa-card-title">Resolution Summary</h3>
+            <p className="pa-card-sub">Current complaint resolution overview</p>
             <div className="pa-insight-box" style={{marginTop:'1rem'}}>
               <span className="pa-insight-icon">💡</span>
               <div>
-                <p className="pa-insight-title">Improving Trend</p>
-                <p className="pa-insight-desc">Resolution rate improved by <strong>+150%</strong> over 5 months — from 12 in Nov to 30 in Mar.</p>
+                <p className="pa-insight-title">Current Status</p>
+                <p className="pa-insight-desc">
+                  <strong>{totalResolved}</strong> resolved out of <strong>{totalComplaints}</strong> total complaints ({resRate}% resolution rate). 
+                  Average resolution time: <strong>{avgResTime}</strong>.
+                </p>
               </div>
             </div>
           </div>
@@ -288,7 +280,7 @@ export default function PublicAnalytics() {
               <h3 className="pa-card-title">Weekly Complaint Trend</h3>
               <p className="pa-card-sub">Complaints raised vs resolved this week</p>
               <div className="pa-bar-chart">
-                {TREND.map(t => (
+                {trend.map(t => (
                   <div key={t.day} className="pa-bar-group">
                     <div className="pa-bar-pair">
                       <div className="pa-bar pa-bar--raised" style={{ height: `${(t.raised/maxTrend)*100}%` }}>
@@ -308,31 +300,25 @@ export default function PublicAnalytics() {
               </div>
             </div>
 
-            {/* Stacked monthly area */}
+            {/* Monthly resolution progress */}
             <div className="pa-card pa-card--full">
-              <h3 className="pa-card-title">Monthly Status Breakdown</h3>
-              <p className="pa-card-sub">Pending / In Progress / Resolved by month</p>
-              <div className="pa-stacked-chart">
-                {STATUS_TREND.map(m => {
-                  const total = m.pending + m.inProgress + m.resolved;
-                  return (
-                    <div key={m.month} className="pa-stacked-col">
-                      <div className="pa-stacked-bar-wrap">
-                        <div className="pa-stacked-bar">
-                          <div className="pa-stacked-seg" style={{ height:`${(m.resolved/total)*100}%`, background:'#10b981' }} title={`Resolved: ${m.resolved}`} />
-                          <div className="pa-stacked-seg" style={{ height:`${(m.inProgress/total)*100}%`, background:'#3b82f6' }} title={`In Progress: ${m.inProgress}`} />
-                          <div className="pa-stacked-seg" style={{ height:`${(m.pending/total)*100}%`, background:'#f59e0b' }} title={`Pending: ${m.pending}`} />
-                        </div>
+              <h3 className="pa-card-title">Resolution Performance</h3>
+              <p className="pa-card-sub">Current status of all campus requests</p>
+              <div className="pa-monthly-bars" style={{ height: '200px', alignItems: 'flex-end', justifyContent: 'space-around' }}>
+                {[
+                  { label: 'Pending', count: safeAnalytics.pending || 0, color: '#f59e0b' },
+                  { label: 'In Progress', count: safeAnalytics.inProgress || 0, color: '#3b82f6' },
+                  { label: 'Resolved', count: safeAnalytics.resolved || 0, color: '#10b981' },
+                ].map(s => (
+                  <div key={s.label} className="pa-monthly-col">
+                    <div className="pa-monthly-bar-wrap" style={{ height: '100%', width: '60px' }}>
+                      <div className="pa-monthly-bar" style={{ height: `${(s.count / (totalComplaints || 1)) * 100}%`, background: s.color }}>
+                        <span className="pa-monthly-bar-tip">{s.count}</span>
                       </div>
-                      <span className="pa-stacked-lbl">{m.month}</span>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="pa-legend" style={{marginTop:'0.75rem'}}>
-                <span><span className="pa-dot" style={{background:'#10b981'}}/>Resolved</span>
-                <span><span className="pa-dot" style={{background:'#3b82f6'}}/>In Progress</span>
-                <span><span className="pa-dot" style={{background:'#f59e0b'}}/>Pending</span>
+                    <span className="pa-monthly-lbl">{s.label}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </>
@@ -342,49 +328,14 @@ export default function PublicAnalytics() {
         {activeTab === 'blocks' && (
           <>
             {/* Heatmap */}
-            <div className="pa-card pa-card--full">
-              <h3 className="pa-card-title">Complaint Heatmap</h3>
-              <p className="pa-card-sub">Number of complaints per block per day (darker = more)</p>
-              <div className="pa-heatmap-wrap">
-                <div className="pa-heatmap-days">
-                  <div className="pa-heatmap-corner" />
-                  {DAYS.map(d => <div key={d} className="pa-heatmap-day-label">{d}</div>)}
-                </div>
-                {HEATMAP.map(row => (
-                  <div key={row.block} className="pa-heatmap-row">
-                    <div className="pa-heatmap-block-label">{row.block}</div>
-                    {DAYS.map(d => {
-                      const val = row[d];
-                      const intensity = val / MAX_HEAT;
-                      return (
-                        <div
-                          key={d}
-                          className="pa-heatmap-cell"
-                          style={{ background: `rgba(102,126,234,${0.08 + intensity * 0.85})` }}
-                          title={`${row.block} ${d}: ${val} complaint${val !== 1 ? 's' : ''}`}
-                        >
-                          {val > 0 && <span className="pa-heatmap-val">{val}</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-              <div className="pa-heatmap-scale">
-                <span>Low</span>
-                {[0.08,0.3,0.55,0.75,0.93].map((op,i) => (
-                  <div key={i} className="pa-scale-cell" style={{background:`rgba(102,126,234,${op})`}} />
-                ))}
-                <span>High</span>
-              </div>
-            </div>
+
 
             {/* Block comparison bars */}
             <div className="pa-card pa-card--full">
               <h3 className="pa-card-title">Complaints by Block</h3>
               <p className="pa-card-sub">Raised vs resolved per block</p>
               <div className="pa-block-chart">
-                {BLOCK_DATA.map(b => (
+                {blocks.map(b => (
                   <div key={b.block} className="pa-block-row">
                     <span className="pa-block-name">{b.block}</span>
                     <div className="pa-block-bars">
@@ -410,87 +361,7 @@ export default function PublicAnalytics() {
           </>
         )}
 
-        {/* ── SENTIMENT tab ────────────────────── */}
-        {activeTab === 'sentiment' && (
-          <>
-            <div className="pa-row">
-              {/* Sentiment donut */}
-              <div className="pa-card">
-                <h3 className="pa-card-title">AI Sentiment Analysis</h3>
-                <p className="pa-card-sub">Complaint tone classification by AI</p>
-                <div className="pa-donut-wrap">
-                  <div className="pa-donut-chart">
-                    <DonutChart slices={SENTIMENT} size={160} thickness={34} />
-                    <div className="pa-donut-center">
-                      <span className="pa-donut-num">10</span>
-                      <span className="pa-donut-sub">Analysed</span>
-                    </div>
-                  </div>
-                  <div className="pa-donut-legend">
-                    {SENTIMENT.map(s => (
-                      <div key={s.label} className="pa-legend-row">
-                        <span className="pa-legend-dot" style={{ background: s.color }} />
-                        <span className="pa-legend-label">{s.emoji} {s.label}</span>
-                        <span className="pa-legend-val">{s.count}</span>
-                        <span className="pa-legend-pct">{s.pct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
 
-              {/* Sentiment bar breakdown */}
-              <div className="pa-card" style={{flex:2}}>
-                <h3 className="pa-card-title">Sentiment by Category</h3>
-                <p className="pa-card-sub">Which categories generate the most negative feedback</p>
-                <div className="pa-sent-breakdown">
-                  {[
-                    { cat:'Maintenance',    neg:2, neu:1, pos:0 },
-                    { cat:'Infrastructure', neg:3, neu:0, pos:0 },
-                    { cat:'Hostel',         neg:1, neu:1, pos:0 },
-                    { cat:'Academics',      neg:1, neu:0, pos:1 },
-                  ].map(row => {
-                    const total = row.neg + row.neu + row.pos;
-                    return (
-                      <div key={row.cat} className="pa-sent-row">
-                        <span className="pa-sent-cat">{row.cat}</span>
-                        <div className="pa-sent-bar-wrap">
-                          <div className="pa-sent-bar-seg" style={{ width:`${(row.neg/total)*100}%`, background:'#ef4444' }} title={`Negative: ${row.neg}`} />
-                          <div className="pa-sent-bar-seg" style={{ width:`${(row.neu/total)*100}%`, background:'#f59e0b' }} title={`Neutral: ${row.neu}`} />
-                          <div className="pa-sent-bar-seg" style={{ width:`${(row.pos/total)*100}%`, background:'#10b981' }} title={`Positive: ${row.pos}`} />
-                        </div>
-                        <span className="pa-sent-total">{total}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="pa-legend" style={{marginTop:'1rem'}}>
-                  <span><span className="pa-dot" style={{background:'#ef4444'}}/>Negative</span>
-                  <span><span className="pa-dot" style={{background:'#f59e0b'}}/>Neutral</span>
-                  <span><span className="pa-dot" style={{background:'#10b981'}}/>Positive</span>
-                </div>
-              </div>
-            </div>
-
-            {/* AI insight cards */}
-            <div className="pa-insight-grid">
-              {[
-                { icon:'🎯', title:'Top Pain Point', desc:'Infrastructure complaints generate the highest negativity — 3 of 3 rated negative.', color:'#fef2f2', border:'#fca5a5' },
-                { icon:'⚡', title:'Fast Resolution', desc:'Block C has the highest resolution rate at 100% across 2 complaints.', color:'#ecfdf5', border:'#6ee7b7' },
-                { icon:'📅', title:'Peak Day', desc:'Thursday sees the most complaints raised (10) — likely after mid-week maintenance cycles.', color:'#eff6ff', border:'#93c5fd' },
-                { icon:'🤖', title:'AI Recommendation', desc:'Prioritise elevator and Wi-Fi infrastructure repairs to reduce recurring complaints.', color:'#f5f3ff', border:'#c4b5fd' },
-              ].map(ins => (
-                <div key={ins.title} className="pa-insight-card" style={{ background:ins.color, borderColor:ins.border }}>
-                  <span className="pa-insight-icon">{ins.icon}</span>
-                  <div>
-                    <p className="pa-insight-title">{ins.title}</p>
-                    <p className="pa-insight-desc">{ins.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
 
         {/* Footer note */}
         <div className="pa-note">

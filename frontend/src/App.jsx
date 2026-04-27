@@ -1,58 +1,66 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
+import { AuthProvider } from './context/AuthContext';
 
-import Home from './components/Home';
-import Login from './components/Login';
-import Signup from './components/Signup';
-<<<<<<< HEAD
-import StudentDashboard from './components/StudentDashboard';
+import Home              from './components/Home';
+import Login             from './components/Login';
+import Signup            from './components/Signup';
+import StudentDashboard  from './components/StudentDashboard';
 import InChargeDashboard from './components/InChargeDashboard';
-import AdminDashboard from './components/AdminDashboard';
-import PublicComplaints from './components/PublicComplaints';
-import PublicAnalytics from './components/PublicAnalytics';
-=======
-import SubmitComplaint from './components/SubmitComplaint';
-import Analytics from './components/Analytics';
->>>>>>> a49bd7dbf44c0933cfa6b33d344fd1f75aa930dd
+import AdminDashboard    from './components/AdminDashboard';
+import PublicComplaints  from './components/PublicComplaints';
+import PublicAnalytics   from './components/PublicAnalytics';
+import ProtectedRoute    from './components/ProtectedRoute';
 
 function App() {
   return (
-    <Router>
-      <div className="App">
-        <Routes>
-          {/* Landing */}
-          <Route path="/" element={<Home />} />
-<<<<<<< HEAD
-=======
-          <Route path="/complaints" element={<div>Complaints Page - Coming Soon</div>} />
-          <Route path="/analytics" element={<Analytics />} />
-          {/* Student section (existing login/register behavior) */}
-          <Route path="/student/login" element={<Login />} />
-          <Route path="/student/register" element={<Signup />} />
->>>>>>> a49bd7dbf44c0933cfa6b33d344fd1f75aa930dd
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <Routes>
+            {/* ── Landing ─────────────────────────────── */}
+            <Route path="/"           element={<Home />} />
 
-          {/* Public pages — navbar links */}
-          <Route path="/complaints" element={<PublicComplaints />} />
-          <Route path="/analytics"  element={<PublicAnalytics />} />
+            {/* ── Public pages ────────────────────────── */}
+            <Route path="/complaints" element={<PublicComplaints />} />
+            <Route path="/analytics"  element={<PublicAnalytics />} />
 
-          {/* Student */}
-          <Route path="/student/login"      element={<Login />} />
-          <Route path="/student/register"   element={<Signup />} />
-          <Route path="/student/dashboard"  element={<StudentDashboard />} />
+            {/* ── Auth ────────────────────────────────── */}
+            <Route path="/student/login"    element={<Login />} />
+            <Route path="/student/register" element={<Signup />} />
 
-          {/* In-Charge */}
-          <Route path="/incharge/dashboard" element={<InChargeDashboard />} />
+            {/* ── Student (protected) ─────────────────── */}
+            <Route path="/student/dashboard" element={
+              <ProtectedRoute allowedRole="student">
+                <StudentDashboard />
+              </ProtectedRoute>
+            } />
 
-          {/* Admin */}
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            {/* ── In-Charge (protected) ───────────────── */}
+            <Route path="/incharge/dashboard" element={
+              <ProtectedRoute allowedRole="incharge">
+                <InChargeDashboard />
+              </ProtectedRoute>
+            } />
 
-          {/* Legacy redirects */}
-          <Route path="/login"             element={<Navigate to="/student/login"      replace />} />
-          <Route path="/signup"            element={<Navigate to="/student/register"   replace />} />
-          <Route path="/submit-complaint"  element={<Navigate to="/student/dashboard"  replace />} />
-        </Routes>
-      </div>
-    </Router>
+            {/* ── Admin (protected) ───────────────────── */}
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+
+            {/* ── Legacy redirects ────────────────────── */}
+            <Route path="/login"            element={<Navigate to="/student/login"    replace />} />
+            <Route path="/signup"           element={<Navigate to="/student/register" replace />} />
+            <Route path="/submit-complaint" element={<Navigate to="/student/dashboard" replace />} />
+
+            {/* ── Catch-all ───────────────────────────── */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 

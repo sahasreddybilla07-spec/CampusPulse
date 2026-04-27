@@ -1,21 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAllComplaints } from '../services/admin';
 import Navbar from './Navbar';
 import Logo from './Logo';
 import './PublicComplaints.css';
-
-/* ── Mock public complaint data ─────────────── */
-const COMPLAINTS = [
-  { id: 'CP-001', title: 'Broken water pipe in washroom', category: 'Maintenance',    block: 'Block A', date: '2026-03-22', priority: 'High',   status: 'Pending',     votes: 14, description: 'The water pipe near washroom 204 has been leaking since yesterday. The floor is wet and slippery.' },
-  { id: 'CP-002', title: 'AC not working in Room 310',   category: 'Maintenance',    block: 'Block B', date: '2026-03-22', priority: 'Medium', status: 'In Progress', votes: 9,  description: 'Air conditioning in Room 310 stopped working. Temperature is very high making it difficult to study.' },
-  { id: 'CP-003', title: 'Noisy construction at night',  category: 'Infrastructure', block: 'Block A', date: '2026-03-21', priority: 'Low',    status: 'Pending',     votes: 22, description: 'Construction noise near Block A is extremely loud during exam preparation hours (8 PM–12 AM).' },
-  { id: 'CP-004', title: 'Wi-Fi down in reading room',   category: 'Infrastructure', block: 'Block C', date: '2026-03-21', priority: 'High',   status: 'Resolved',    votes: 31, description: 'The Wi-Fi router in the reading room has been down for 3 days.' },
-  { id: 'CP-005', title: 'Mess food quality very poor',  category: 'Hostel',         block: 'Mess Hall', date: '2026-03-20', priority: 'Medium', status: 'Resolved',  votes: 47, description: 'Food served in the mess has been undercooked multiple times this week.' },
-  { id: 'CP-006', title: 'Elevator out of service',      category: 'Infrastructure', block: 'Block B', date: '2026-03-23', priority: 'High',   status: 'Pending',     votes: 18, description: 'The elevator in Block B has been non-functional for 2 days.' },
-  { id: 'CP-007', title: 'Ceiling fan loud rattling',    category: 'Maintenance',    block: 'Block A', date: '2026-03-23', priority: 'Low',    status: 'In Progress', votes: 6,  description: 'Ceiling fan in room 412 making a loud rattling noise at night.' },
-  { id: 'CP-008', title: 'Library computers crashing',   category: 'Academics',      block: 'Library',   date: '2026-03-20', priority: 'Medium', status: 'Pending',   votes: 25, description: 'The computers in the library are extremely slow and crash frequently.' },
-  { id: 'CP-009', title: 'Lab projector not working',    category: 'Academics',      block: 'Block C', date: '2026-03-19', priority: 'High',   status: 'Resolved',    votes: 12, description: 'Projector in Lab 3 is not working, affecting practical sessions.' },
-  { id: 'CP-010', title: 'Hostel gate locked early',     category: 'Hostel',         block: 'Block D', date: '2026-03-18', priority: 'Medium', status: 'Resolved',    votes: 8,  description: 'Hostel gate is being locked at 9:30 PM instead of 11 PM as per schedule.' },
-];
 
 const CATEGORIES = ['All', 'Maintenance', 'Infrastructure', 'Hostel', 'Academics'];
 const STATUSES   = ['All', 'Pending', 'In Progress', 'Resolved'];
@@ -31,11 +18,26 @@ export default function PublicComplaints() {
   const [category, setCategory] = useState('All');
   const [status, setStatus]     = useState('All');
   const [search, setSearch]     = useState('');
-  const [votes, setVotes]       = useState({});
+  const [complaints, setComplaints] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
   const [sort, setSort]         = useState('date');
 
-  const filtered = COMPLAINTS
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getAllComplaints();
+        setComplaints(data || []);
+      } catch (err) {
+        console.error('Failed to load public complaints:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const filtered = complaints
     .filter(c => {
       const mc = category === 'All' || c.category === category;
       const ms = status   === 'All' || c.status   === status;
@@ -44,22 +46,19 @@ export default function PublicComplaints() {
       return mc && ms && mq;
     })
     .sort((a, b) => {
-      if (sort === 'votes') return (b.votes + (votes[b.id] ?? 0)) - (a.votes + (votes[a.id] ?? 0));
       if (sort === 'priority') {
         const p = { High: 3, Medium: 2, Low: 1 };
         return p[b.priority] - p[a.priority];
       }
-      return new Date(b.date) - new Date(a.date); // date
+      return new Date(b.created_at) - new Date(a.created_at); // date
     });
 
-  const handleVote = (e, id) => {
-    e.stopPropagation();
-    setVotes(v => ({ ...v, [id]: (v[id] ?? 0) + 1 }));
-  };
+  const total    = complaints.length;
+  const pendingCount  = complaints.filter(c => c.status === 'Pending').length;
+  const resolvedCount = complaints.filter(c => c.status === 'Resolved').length;
 
-  const total    = COMPLAINTS.length;
-  const pending  = COMPLAINTS.filter(c => c.status === 'Pending').length;
-  const resolved = COMPLAINTS.filter(c => c.status === 'Resolved').length;
+  if (isLoading) return <div className="pc-loading">Loading Transparency Board…</div>;
+
 
   return (
     <div className="pc-root">
@@ -82,12 +81,12 @@ export default function PublicComplaints() {
             </div>
             <div className="pc-hero-stat-div" />
             <div className="pc-hero-stat">
-              <span className="pc-hero-stat-num pc-num-amber">{pending}</span>
+              <span className="pc-hero-stat-num pc-num-amber">{pendingCount}</span>
               <span className="pc-hero-stat-lbl">Pending</span>
             </div>
             <div className="pc-hero-stat-div" />
             <div className="pc-hero-stat">
-              <span className="pc-hero-stat-num pc-num-green">{resolved}</span>
+              <span className="pc-hero-stat-num pc-num-green">{resolvedCount}</span>
               <span className="pc-hero-stat-lbl">Resolved</span>
             </div>
           </div>
@@ -114,7 +113,6 @@ export default function PublicComplaints() {
           {/* Sort */}
           <select className="pc-select" value={sort} onChange={e => setSort(e.target.value)}>
             <option value="date">Sort: Latest</option>
-            <option value="votes">Sort: Most Voted</option>
             <option value="priority">Sort: Priority</option>
           </select>
         </div>
@@ -164,8 +162,6 @@ export default function PublicComplaints() {
 
           {filtered.map(c => {
             const isOpen  = expanded === c.id;
-            const voteCount = c.votes + (votes[c.id] ?? 0);
-            const voted = (votes[c.id] ?? 0) > 0;
 
             return (
               <div
@@ -174,17 +170,12 @@ export default function PublicComplaints() {
                 onClick={() => setExpanded(isOpen ? null : c.id)}
               >
                 <div className="pc-card-main">
-                  {/* Vote button */}
-                  <button
-                    className={`pc-vote ${voted ? 'pc-vote--voted' : ''}`}
-                    onClick={e => handleVote(e, c.id)}
-                    title="Upvote this complaint"
-                  >
-                    <svg viewBox="0 0 24 24" fill={voted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="pc-vote pc-vote--static">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="18 15 12 9 6 15"/>
                     </svg>
-                    <span>{voteCount}</span>
-                  </button>
+                    <span>0</span>
+                  </div>
 
                   {/* Content */}
                   <div className="pc-card-body">
@@ -199,7 +190,7 @@ export default function PublicComplaints() {
                     <div className="pc-card-meta">
                       <span>📍 {c.block}</span>
                       <span>🏷️ {c.category}</span>
-                      <span>🗓️ {c.date}</span>
+                      <span>🗓️ {new Date(c.created_at).toLocaleDateString()}</span>
                     </div>
 
                     {isOpen && (

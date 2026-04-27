@@ -1,6 +1,16 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import LogoMark from './LogoMark';
+import Logo from './Logo';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { 
+  getMyComplaints, 
+  submitComplaint, 
+  getNotifications, 
+  markAllNotificationsRead,
+  updateProfile,
+  changePassword 
+} from '../services/complaints';
 import './StudentDashboard.css';
 
 /* ─── AI Sentiment Engine (Keyword / Pattern NLP) ─── */
@@ -82,34 +92,6 @@ function SentimentPanel({ analysis }) {
   );
 }
 
-/* ── Mock Data ───────────────────────────────────────────── */
-const STUDENT = {
-  name: 'Rahul Sharma',
-  rollNo: '22CSE1001',
-  branch: 'Computer Science & Engineering',
-  year: '3rd Year',
-  email: 'rahul.sharma@campuspulse.edu',
-  phone: '+91 98765 43210',
-  hostel: 'Block A, Room 204',
-  initials: 'RS',
-};
-
-const MY_COMPLAINTS = [
-  { id: 'CP-001', title: 'Broken water pipe in washroom', category: 'Maintenance', block: 'Block A', date: '2026-03-22', priority: 'High',   status: 'Pending',     description: 'The water pipe near washroom 204 has been leaking since yesterday. Floor is wet and slippery.' },
-  { id: 'CP-005', title: 'Mess food quality very poor',  category: 'Hostel',       block: 'Mess Hall', date: '2026-03-18', priority: 'Medium', status: 'Resolved',    description: 'Food served in the mess has been undercooked multiple times this week.' },
-  { id: 'CP-007', title: 'Ceiling fan loud rattling',    category: 'Maintenance',  block: 'Block A', date: '2026-03-23', priority: 'Low',    status: 'In Progress', description: 'Ceiling fan in room 412 making a loud rattling noise at night.' },
-  { id: 'CP-011', title: 'Power outage in room',         category: 'Infrastructure',block: 'Block A', date: '2026-03-17', priority: 'High',   status: 'Resolved',    description: 'Frequent power cuts in room 204 between 6-10 PM affecting study hours.' },
-  { id: 'CP-013', title: 'Wi-Fi weak signal in room',   category: 'Infrastructure',block: 'Block A', date: '2026-03-15', priority: 'Medium', status: 'Resolved',    description: 'Wi-Fi signal is very weak in room 204, unable to attend online classes.' },
-];
-
-const NOTIFICATIONS = [
-  { id: 1, type: 'resolved',    message: 'Your complaint CP-005 "Mess food quality very poor" has been resolved.',       time: '2h ago',  read: false },
-  { id: 2, type: 'progress',    message: 'CP-007 "Ceiling fan loud rattling" is now In Progress. Our team is working on it.', time: '5h ago',  read: false },
-  { id: 3, type: 'resolved',    message: 'CP-011 "Power outage in room" has been resolved successfully.',                time: '1d ago',  read: true  },
-  { id: 4, type: 'system',      message: 'Welcome to CampusPulse! Your account is active and ready to use.',            time: '2d ago',  read: true  },
-  { id: 5, type: 'resolved',    message: 'CP-013 "Wi-Fi weak signal in room" has been resolved. Router was replaced.',   time: '3d ago',  read: true  },
-];
-
 const CATEGORIES = [
   { id: 'hostel',         label: 'Hostel',         icon: '🏠' },
   { id: 'academics',      label: 'Academics',       icon: '📚' },
@@ -131,23 +113,28 @@ const NAV_ITEMS = [
   { id: 'notifications',icon: '🔔', label: 'Notifications'   },
 ];
 
-const NOTIF_ICON = { resolved: '✅', progress: '🔄', system: 'ℹ️' };
-const NOTIF_COLOR = { resolved: '#10b981', progress: '#3b82f6', system: '#667eea' };
-const NOTIF_BG    = { resolved: '#ecfdf5', progress: '#eff6ff', system: '#eef2ff' };
+const NOTIF_ICON = { resolved: '✅', progress: '🔄', system: 'ℹ️', update: '🔔', info: 'ℹ️', warning: '⚠️' };
+const NOTIF_COLOR = { resolved: '#10b981', progress: '#3b82f6', system: '#667eea', update: '#3b82f6', info: '#667eea', warning: '#f59e0b' };
+const NOTIF_BG    = { resolved: '#ecfdf5', progress: '#eff6ff', system: '#eef2ff', update: '#eff6ff', info: '#eef2ff', warning: '#fffbeb' };
 
 /* ──────────────────────────────────────────────────────────── */
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
+  const { user, profile, signOut, refreshProfile } = useAuth();
+  
   const [activeNav, setActiveNav] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [complaints, setComplaints] = useState(MY_COMPLAINTS);
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [complaints, setComplaints] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('All');
   const [expanded, setExpanded] = useState(null);
-  const [profile, setProfile] = useState(STUDENT);
+  
+  /* Edit Profile state */
   const [editMode, setEditMode] = useState(false);
-  const [editProfile, setEditProfile] = useState(STUDENT);
+  const [editProfile, setEditProfile] = useState({});
+  const [savingProfile, setSavingProfile] = useState(false);
 
   /* Submit form state */
   const [form, setForm] = useState({ title:'', category:'', block:'', description:'', image:null });
@@ -155,14 +142,39 @@ export default function StudentDashboard() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-
-  /* AI Sentiment */
   const [sentiment, setSentiment] = useState(null);
   const sentTimer = useRef(null);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (profile) {
+      setEditProfile(profile);
+    }
+  }, [profile]);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const [cData, nData] = await Promise.all([
+        getMyComplaints(user.id),
+        getNotifications(user.id)
+      ]);
+      setComplaints(cData || []);
+      setNotifications(nData || []);
+    } catch (err) {
+      console.error('Error loading student data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const handleLogout = async () => {
+    await signOut();
     navigate('/student/login');
   };
 
@@ -182,42 +194,73 @@ export default function StudentDashboard() {
     }, 350);
   };
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setSubmitting(true);
-    setTimeout(() => {
-      const newId = `CP-0${complaints.length + 14}`;
-      setComplaints(p => [{
-        id: newId,
-        title: form.title,
-        category: CATEGORIES.find(c => c.id === form.category)?.label || form.category,
-        block: form.block,
-        date: new Date().toISOString().slice(0,10),
-        priority: 'Medium',
-        status: 'Pending',
-        description: form.description,
+    try {
+      const selectedCat = CATEGORIES.find(c => c.id === form.category)?.label || form.category;
+      await submitComplaint({
+        studentId: user.id,
+        ...form,
+        category: selectedCat,
         anonymous: isAnonymous,
-      }, ...p]);
+        sentiment: sentiment?.sentiment,
+        imageFile: form.image
+      });
+      
       setForm({ title:'', category:'', block:'', description:'', image:null });
       setIsAnonymous(false);
-      setSubmitting(false);
       setShowSuccess(true);
+      await loadData();
       setTimeout(() => setShowSuccess(false), 3000);
-    }, 1500);
+      setActiveNav('complaints');
+    } catch (err) {
+      alert('Failed to submit: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const markAllRead = () => {
-    setNotifications(p => p.map(n => ({ ...n, read: true })));
+  const markAllRead = async () => {
+    try {
+      await markAllNotificationsRead(user.id);
+      setNotifications(p => p.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error('Failed to mark all as read:', err);
+    }
   };
 
-  const saveProfile = () => {
-    setProfile(editProfile);
-    setEditMode(false);
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const { id, created_at, updated_at, roll_no, email, role, ...updatableFields } = editProfile;
+      await updateProfile(user.id, updatableFields);
+      await refreshProfile();
+      setEditMode(false);
+    } catch (err) {
+      alert('Failed to update profile: ' + err.message);
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const total    = complaints.length;
   const pending  = complaints.filter(c => c.status === 'Pending').length;
   const resolved = complaints.filter(c => c.status === 'Resolved').length;
+
+  if (isLoading || !profile) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: '#0f172a', color: '#fff', fontSize: '1.2rem', gap: '1rem'
+      }}>
+        <div className="sd-loading-spinner" />
+        Loading your dashboard…
+      </div>
+    );
+  }
+
+  const initials = profile.name ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase() : '??';
 
   return (
     <div className="sd-root">
@@ -226,7 +269,9 @@ export default function StudentDashboard() {
       <aside className={`sd-sidebar ${sidebarOpen ? 'sd-sidebar--open' : 'sd-sidebar--collapsed'}`}>
 
         <div className="sd-sidebar-brand">
-          <LogoMark variant="colored" showText={sidebarOpen} size={36} />
+          {sidebarOpen
+            ? <div style={{ transform: 'scale(0.48)', transformOrigin: 'left center', marginLeft: '-0.5rem' }}><Logo /></div>
+            : <LogoMark variant="colored" showText={false} size={36} />}
         </div>
 
         <nav className="sd-nav">
@@ -247,11 +292,11 @@ export default function StudentDashboard() {
 
         <div className="sd-sidebar-footer">
           <div className="sd-user-chip">
-            <div className="sd-user-avatar">{profile.initials}</div>
+            <div className="sd-user-avatar">{initials}</div>
             {sidebarOpen && (
               <div className="sd-user-info">
                 <span className="sd-user-name">{profile.name.split(' ')[0]}</span>
-                <span className="sd-user-role">{profile.rollNo}</span>
+                <span className="sd-user-role">{profile.roll_no}</span>
               </div>
             )}
           </div>
@@ -297,7 +342,7 @@ export default function StudentDashboard() {
               🔔
               {unread > 0 && <span className="sd-notif-dot">{unread}</span>}
             </button>
-            <div className="sd-topbar-avatar">{profile.initials}</div>
+            <div className="sd-topbar-avatar">{initials}</div>
           </div>
         </header>
 
@@ -319,7 +364,7 @@ export default function StudentDashboard() {
               </div>
               <div className="sd-greeting-illustration">
                 <div className="sd-illus-circle">
-                  <div className="sd-illus-avatar">{profile.initials}</div>
+                  <div className="sd-illus-avatar">{initials}</div>
                 </div>
               </div>
             </div>
@@ -391,12 +436,12 @@ export default function StudentDashboard() {
             <div className="sd-profile-card">
               <div className="sd-profile-header">
                 <div className="sd-profile-avatar-wrap">
-                  <div className="sd-profile-avatar">{profile.initials}</div>
+                  <div className="sd-profile-avatar">{initials}</div>
                   <div className="sd-profile-avatar-ring" />
                 </div>
                 <div className="sd-profile-names">
                   <h2 className="sd-profile-name">{profile.name}</h2>
-                  <p className="sd-profile-roll">{profile.rollNo}</p>
+                  <p className="sd-profile-roll">{profile.roll_no}</p>
                   <span className="sd-profile-badge">🎓 Student</span>
                 </div>
                 <button
@@ -409,13 +454,14 @@ export default function StudentDashboard() {
 
               <div className="sd-profile-grid">
                 {[
-                  { label: 'Full Name',    key: 'name',    icon: '👤' },
-                  { label: 'Roll Number',  key: 'rollNo',  icon: '🎫', readOnly: true },
-                  { label: 'Branch',       key: 'branch',  icon: '📐' },
-                  { label: 'Year',         key: 'year',    icon: '📅' },
-                  { label: 'Email',        key: 'email',   icon: '📧' },
-                  { label: 'Phone',        key: 'phone',   icon: '📱' },
-                  { label: 'Hostel / Room',key: 'hostel',  icon: '🏠' },
+                  { label: 'Full Name',    key: 'name',         icon: '👤' },
+                  { label: 'Roll Number',  key: 'roll_no',      icon: '🎫', readOnly: true },
+                  { label: 'Branch',       key: 'branch',       icon: '📐' },
+                  { label: 'Year',         key: 'year',         icon: '📅' },
+                  { label: 'Email',        key: 'email',        icon: '📧', readOnly: true },
+                  { label: 'Phone',        key: 'phone',        icon: '📱' },
+                  { label: 'Hostel Block', key: 'hostel_block', icon: '🏠' },
+                  { label: 'Hostel Room',  key: 'hostel_room',  icon: '🚪' },
                 ].map(f => (
                   <div key={f.key} className="sd-profile-field">
                     <span className="sd-profile-field-icon">{f.icon}</span>
@@ -424,11 +470,11 @@ export default function StudentDashboard() {
                       {editMode && !f.readOnly ? (
                         <input
                           className="sd-profile-input"
-                          value={editProfile[f.key]}
+                          value={editProfile[f.key] || ''}
                           onChange={e => setEditProfile(p => ({ ...p, [f.key]: e.target.value }))}
                         />
                       ) : (
-                        <span className="sd-profile-field-value">{profile[f.key]}</span>
+                        <span className="sd-profile-field-value">{profile[f.key] || 'Not set'}</span>
                       )}
                     </div>
                   </div>
@@ -437,7 +483,13 @@ export default function StudentDashboard() {
 
               {editMode && (
                 <div className="sd-profile-actions">
-                  <button className="sd-save-btn" onClick={saveProfile}>💾 Save Changes</button>
+                  <button 
+                    className="sd-save-btn" 
+                    onClick={saveProfile}
+                    disabled={savingProfile}
+                  >
+                    {savingProfile ? 'Saving...' : '💾 Save Changes'}
+                  </button>
                 </div>
               )}
             </div>
@@ -578,11 +630,20 @@ export default function StudentDashboard() {
                 <div className="sd-form-group">
                   <label className="sd-label">Block / Location</label>
                   <div className={`sd-input-wrap ${focusField==='block' ? 'sd-input-wrap--focus' : ''}`}>
-                    <input
+                    <select
                       name="block" value={form.block} onChange={handleFormChange}
                       onFocus={() => setFocusField('block')} onBlur={() => setFocusField('')}
-                      className="sd-input" placeholder="e.g., Block A, Library, Cafeteria" required
-                    />
+                      className="sd-input" required
+                    >
+                      <option value="">Select block / location…</option>
+                      {['A','B','C','D','E','F','G','H','I','J','K','L','M','N'].map(b => (
+                        <option key={b} value={`Block ${b}`}>Block {b}</option>
+                      ))}
+                      <option value="Library">Library</option>
+                      <option value="Mess Hall">Mess Hall</option>
+                      <option value="Auditorium">Auditorium</option>
+                      <option value="Sports Ground">Sports Ground</option>
+                    </select>
                     <span className="sd-input-icon">📍</span>
                   </div>
                 </div>
