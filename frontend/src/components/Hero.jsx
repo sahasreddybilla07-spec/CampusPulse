@@ -6,7 +6,6 @@ import './Hero.css';
 export default function Hero() {
   const [hoverSubmit, setHoverSubmit] = useState(false);
   const [hoverTrack, setHoverTrack] = useState(false);
-  const [hoverLogin, setHoverLogin] = useState(false);
   const navigate = useNavigate();
 
   return (
@@ -45,7 +44,6 @@ export default function Hero() {
                 navigate('/student/login');
               }
             }}
-
           >
             <span className="btn-icon">✉</span>
             Submit Complaint
@@ -60,9 +58,6 @@ export default function Hero() {
             <span className="btn-icon">📊</span>
             Track Status
           </Link>
-
-
-
         </div>
 
       </div>

@@ -2,6 +2,7 @@
    CampusPulse – Login Page
    Complete styles for all lp-* class names in Login.jsx
    ========================================================= */
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ── Root & animated background ──────────────────────────── */
@@ -97,6 +98,7 @@
 .lp-info-headline span {
   background: linear-gradient(135deg, #38bdf8, #818cf8);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -536,4 +538,12 @@
   .lp-features-list { align-items: center; }
   .lp-info-headline { font-size: 2rem; }
   .lp-card { max-width: 100%; margin-left: 0; }
+}
+
+@media (max-width: 480px) {
+  .lp-card { padding: 1.7rem 1.4rem; border-radius: 18px; }
+  .lp-tab  { padding: 0.5rem 0.3rem; font-size: 0.75rem; gap: 4px; }
+  .lp-demo-account { flex-wrap: wrap; }
+  .lp-info-headline { font-size: 1.35rem; }
+  .lp-features-list { display: none; }
 }
