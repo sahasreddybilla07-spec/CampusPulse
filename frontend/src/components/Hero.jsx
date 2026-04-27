@@ -58,7 +58,6 @@ export default function Hero() {
             <span className="btn-icon">📊</span>
             Track Status
           </Link>
-
         </div>
 
       </div>

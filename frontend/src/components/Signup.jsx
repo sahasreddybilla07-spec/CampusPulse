@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from './Logo';
+import { supabase } from '../lib/supabase';
 import './Signup.css';
 
 export default function Signup() {
@@ -12,26 +13,52 @@ export default function Signup() {
   const [showCPwd, setShowCPwd]  = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]         = useState('');
+  const [success, setSuccess]     = useState(false);
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (form.password !== form.confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
+    if (form.password !== form.confirmPassword) { setError('Passwords do not match.'); return; }
+    if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (!form.rollNo.trim()) { setError('Roll number is required.'); return; }
+
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      // 1. Create auth user — trigger auto-creates profile row
+      const { data: authData, error: signUpErr } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          data: {
+            name:         form.fullName,
+            role:         'student',
+            roll_no:      form.rollNo.trim(),
+            password_ref: form.password,
+          }
+        }
+      });
+      if (signUpErr) throw signUpErr;
+
+      // 2. Update additional profile fields
+      if (authData.user) {
+        await supabase.from('profiles').update({
+          branch: form.branch,
+          year:   form.year,
+          name:   form.fullName,
+        }).eq('id', authData.user.id);
+      }
+
+      setSuccess(true);
+      setTimeout(() => navigate('/student/login'), 2500);
+    } catch (err) {
+      setError(err.message || 'Signup failed. Please try again.');
+    } finally {
       setIsLoading(false);
-      navigate('/student/login');
-    }, 1800);
+    }
   };
+
 
   const FEATURES = [
     { icon: '📋', text: 'Raise complaints anonymously or as yourself' },
@@ -96,6 +123,12 @@ export default function Signup() {
             <p className="sp-form-sub">Student Registration — CampusPulse</p>
           </div>
 
+          {success && (
+            <div style={{ background:'#ecfdf5', border:'1px solid #a7f3d0', borderRadius:'8px', padding:'0.85rem 1rem', marginBottom:'1rem', color:'#065f46', fontSize:'0.9rem', textAlign:'center' }}>
+              ✅ Account created! Redirecting to login…
+            </div>
+          )}
+
           {error && <div className="sp-error">{error}</div>}
 
           <form className="sp-form" onSubmit={handleSubmit}>
@@ -106,14 +139,14 @@ export default function Signup() {
                 <label>Full Name</label>
                 <div className="sp-input-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  <input type="text" placeholder="e.g. Rahul Sharma" value={form.fullName} onChange={set('fullName')} required />
+                  <input type="text" placeholder="e.g. Rahul Sharma" value={form.fullName} onChange={set('fullName')} required autoComplete="name" />
                 </div>
               </div>
               <div className="sp-field">
                 <label>Roll Number</label>
                 <div className="sp-input-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                  <input type="text" placeholder="e.g. 22CSE1001" value={form.rollNo} onChange={set('rollNo')} required />
+                  <input type="text" placeholder="1601********" value={form.rollNo} onChange={set('rollNo')} required autoComplete="off" />
                 </div>
               </div>
             </div>
@@ -123,7 +156,7 @@ export default function Signup() {
               <label>College Email</label>
               <div className="sp-input-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                <input type="email" placeholder="e.g. rahul@campuspulse.edu" value={form.email} onChange={set('email')} required />
+                <input type="email" placeholder="e.g. rahul@campuspulse.edu" value={form.email} onChange={set('email')} required autoComplete="email" />
               </div>
             </div>
 
@@ -159,7 +192,7 @@ export default function Signup() {
               <label>Password</label>
               <div className="sp-input-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <input type={showPwd ? 'text' : 'password'} placeholder="Min. 8 characters" value={form.password} onChange={set('password')} required />
+                <input type={showPwd ? 'text' : 'password'} placeholder="Min. 8 characters" value={form.password} onChange={set('password')} required autoComplete="new-password" />
                 <button type="button" className="sp-eye" onClick={() => setShowPwd(v => !v)}>
                   <EyeIcon open={showPwd} />
                 </button>
@@ -171,7 +204,7 @@ export default function Signup() {
               <label>Confirm Password</label>
               <div className="sp-input-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <input type={showCPwd ? 'text' : 'password'} placeholder="Repeat your password" value={form.confirmPassword} onChange={set('confirmPassword')} required />
+                <input type={showCPwd ? 'text' : 'password'} placeholder="Repeat your password" value={form.confirmPassword} onChange={set('confirmPassword')} required autoComplete="new-password" />
                 <button type="button" className="sp-eye" onClick={() => setShowCPwd(v => !v)}>
                   <EyeIcon open={showCPwd} />
                 </button>

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from './Logo';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
 
@@ -36,7 +38,7 @@ const ROLES = [
     label: 'Student',
     subtitle: 'Raise & track your complaints',
     idLabel: 'Student ID / Email',
-    idPlaceholder: 'e.g. 22CSE1001 or student@college.edu',
+    idPlaceholder: '1601******** or student@college.edu',
     redirectTo: '/student/dashboard',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -88,6 +90,7 @@ const FEATURES = [
 
 export default function Login() {
   const navigate = useNavigate();
+  const { loginDemo } = useAuth();
 
   const [activeRole, setActiveRole] = useState(0);
   const [identifier, setIdentifier] = useState('');
@@ -95,6 +98,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   const role = ROLES[activeRole];
 
@@ -102,6 +106,7 @@ export default function Login() {
     setActiveRole(idx);
     setIdentifier('');
     setPassword('');
+    setAuthError('');
   };
 
   /* Auto-fill from demo panel */
@@ -109,18 +114,73 @@ export default function Login() {
     setActiveRole(demo.roleIndex);
     setIdentifier(demo.id);
     setPassword(demo.password);
+    setAuthError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setAuthError('');
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      localStorage.setItem('token', 'true');
-      localStorage.setItem('role', role.id);
+
+    try {
+      let email = identifier.trim();
+
+      // ── Check if this is a demo account (client-side only) ──
+      const demoMatch = DEMO_ACCOUNTS.find(
+        d => d.id === email && d.password === password
+      );
+      if (demoMatch) {
+        // Demo mode — set auth state and navigate
+        loginDemo(demoMatch.role);
+        navigate(ROLES[demoMatch.roleIndex].redirectTo);
+        return;
+      }
+
+      // Roll number lookup — if it doesn't look like an email
+      if (!email.includes('@')) {
+        const { data: profileRow, error: lookupErr } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('roll_no', email)
+          .single();
+
+        if (lookupErr || !profileRow) {
+          setAuthError('Roll number not found. Please check and try again.');
+          return;
+        }
+        email = profileRow.email;
+      }
+
+      // Sign in with Supabase
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInErr) {
+        setAuthError('Incorrect password or account not found.');
+        return;
+      }
+
+      // Verify role matches selected tab
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (prof?.role !== role.id) {
+        await supabase.auth.signOut();
+        setAuthError(`This account is a "${prof?.role}" account. Please select the correct tab.`);
+        return;
+      }
+
       navigate(role.redirectTo);
-    }, 1600);
+    } catch (err) {
+      console.error('Login error:', err);
+      setAuthError('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   return (
     <div className="lp-root">
@@ -202,6 +262,15 @@ export default function Login() {
           </div>
 
           {/* Form */}
+          {authError && (
+            <div style={{
+              background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px',
+              padding: '0.7rem 1rem', marginBottom: '0.75rem',
+              color: '#dc2626', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
+            }}>
+              ⚠️ {authError}
+            </div>
+          )}
           <form className="lp-form" onSubmit={handleSubmit} noValidate>
 
             <div className="lp-field">

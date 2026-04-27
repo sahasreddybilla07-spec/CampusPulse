@@ -1,26 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import LogoMark from './LogoMark';
+import Logo from './Logo';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { 
+  getAssignedComplaints, 
+  updateComplaintStatus, 
+  updateProfile, 
+  changePassword 
+} from '../services/complaints';
 import './InChargeDashboard.css';
 
-/* ─── Mock Data ─────────────────────────────────────────── */
-const MOCK_COMPLAINTS = [
-  { id: 'CP-001', title: 'Broken water pipe in washroom', category: 'Maintenance', block: 'Block A', floor: '2nd Floor', student: 'Rahul Sharma', rollNo: '22CSE1001', date: '2026-03-22', priority: 'High', status: 'Pending', description: 'The water pipe near washroom 204 has been leaking since yesterday. The floor is wet and slippery. Urgent action needed.' },
-  { id: 'CP-002', title: 'AC not working in Room 310', category: 'Maintenance', block: 'Block B', floor: '3rd Floor', student: 'Priya Patel', rollNo: '22CSE1042', date: '2026-03-22', priority: 'Medium', status: 'In Progress', description: 'Air conditioning unit in Room 310 stopped working. Temperature is very high making it difficult to study.' },
-  { id: 'CP-003', title: 'Noisy construction disturbing study', category: 'Infrastructure', block: 'Block A', floor: '1st Floor', student: 'Arjun Mehta', rollNo: '22CSE1078', date: '2026-03-21', priority: 'Low', status: 'Pending', description: 'Construction noise near Block A is extremely loud during exam preparation hours (8 PM-12 AM).' },
-  { id: 'CP-004', title: 'Wi-Fi down in reading room', category: 'Infrastructure', block: 'Block C', floor: 'Ground Floor', student: 'Sneha Rao', rollNo: '22CSE1089', date: '2026-03-21', priority: 'High', status: 'Resolved', description: 'The Wi-Fi router in the reading room has been down for 3 days. Students unable to access online resources.' },
-  { id: 'CP-005', title: 'Mess food quality very poor', category: 'Hostel', block: 'Mess Hall', floor: 'Ground Floor', student: 'Karan Singh', rollNo: '22CSE1103', date: '2026-03-20', priority: 'Medium', status: 'Resolved', description: 'Food served in the mess has been undercooked multiple times this week. Several students fell sick.' },
-  { id: 'CP-006', title: 'Elevator out of service', category: 'Infrastructure', block: 'Block B', floor: 'All Floors', student: 'Divya Nair', rollNo: '22CSE1115', date: '2026-03-23', priority: 'High', status: 'Pending', description: 'The elevator in Block B has been non-functional for 2 days. Specially-abled students cannot access upper floors.' },
-  { id: 'CP-007', title: 'Ceiling fan making loud noise', category: 'Maintenance', block: 'Block A', floor: '4th Floor', student: 'Amit Kumar', rollNo: '22CSE1056', date: '2026-03-23', priority: 'Low', status: 'In Progress', description: 'Ceiling fan in room 412 making a loud rattling noise at night affecting sleep.' },
-  { id: 'CP-008', title: 'Library computers slow/crashing', category: 'Academics', block: 'Library', floor: '1st Floor', student: 'Ritu Verma', rollNo: '22CSE1067', date: '2026-03-20', priority: 'Medium', status: 'Pending', description: 'The computers in the library are extremely slow and crash frequently, affecting research work.' },
-];
-
-const STAT_CARDS = [
-  { label: 'Total Assigned', value: 8, icon: '📋', color: '#667eea', bg: '#eef2ff' },
-  { label: 'Pending', value: 4, icon: '⏳', color: '#f59e0b', bg: '#fffbeb' },
-  { label: 'In Progress', value: 2, icon: '🔄', color: '#3b82f6', bg: '#eff6ff' },
-  { label: 'Resolved', value: 2, icon: '✅', color: '#10b981', bg: '#ecfdf5' },
-];
 
 const PRIORITY_COLOR = { High: '#ef4444', Medium: '#f59e0b', Low: '#10b981' };
 const PRIORITY_BG    = { High: '#fef2f2', Medium: '#fffbeb', Low: '#ecfdf5' };
@@ -29,31 +19,98 @@ const STATUS_BG      = { Pending: '#fffbeb', 'In Progress': '#eff6ff', Resolved:
 
 export default function InChargeDashboard() {
   const navigate = useNavigate();
-  const [complaints, setComplaints] = useState(MOCK_COMPLAINTS);
+  const { user, profile, signOut, refreshProfile } = useAuth();
+  
+  const [complaints, setComplaints] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeNav, setActiveNav] = useState('dashboard');
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  /* Profile Tab state */
+  const [editMode, setEditMode] = useState(false);
+  const [editProfile, setEditProfile] = useState({});
+  const [savingProfile, setSavingProfile] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (profile) setEditProfile(profile);
+  }, [profile]);
+
+  async function loadData() {
+    setIsLoading(true);
+    try {
+      const data = await getAssignedComplaints(user.id);
+      setComplaints(data || []);
+    } catch (err) {
+      console.error('Error loading incharge data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const handleLogout = async () => {
+    await signOut();
     navigate('/student/login');
   };
 
-  const updateStatus = (id, newStatus) => {
-    setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
-    if (selected?.id === id) setSelected(prev => ({ ...prev, status: newStatus }));
+  const updateStatus = async (id, newStatus) => {
+    try {
+      await updateComplaintStatus(id, newStatus);
+      setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+      if (selected?.id === id) setSelected(prev => ({ ...prev, status: newStatus }));
+    } catch (err) {
+      alert('Failed to update status: ' + err.message);
+    }
+  };
+
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const { id, created_at, updated_at, role, email, employee_id, password_ref, ...updatable } = editProfile;
+      await updateProfile(user.id, updatable);
+      await refreshProfile();
+      setEditMode(false);
+    } catch (err) {
+      alert('Failed to update profile: ' + err.message);
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const filtered = complaints.filter(c => {
     const matchFilter = filter === 'All' || c.status === filter;
-    const matchSearch = c.title.toLowerCase().includes(search.toLowerCase()) ||
-      c.student.toLowerCase().includes(search.toLowerCase()) ||
+    const matchSearch = 
+      c.title.toLowerCase().includes(search.toLowerCase()) ||
+      (c.student?.name || '').toLowerCase().includes(search.toLowerCase()) ||
       c.block.toLowerCase().includes(search.toLowerCase());
     return matchFilter && matchSearch;
   });
+
+  const stats = [
+    { label: 'Total Assigned', value: complaints.length, icon: '📋', color: '#667eea', bg: '#eef2ff' },
+    { label: 'Pending', value: complaints.filter(c=>c.status==='Pending').length, icon: '⏳', color: '#f59e0b', bg: '#fffbeb' },
+    { label: 'In Progress', value: complaints.filter(c=>c.status==='In Progress').length, icon: '🔄', color: '#3b82f6', bg: '#eff6ff' },
+    { label: 'Resolved', value: complaints.filter(c=>c.status==='Resolved').length, icon: '✅', color: '#10b981', bg: '#ecfdf5' },
+  ];
+
+  if (isLoading || !profile) {
+    return (
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#0f172a', color:'#fff', fontSize:'1.2rem' }}>
+        Loading Dashboard…
+      </div>
+    );
+  }
+
+  const initials = profile.name ? profile.name.split(' ').map(n=>n[0]).join('').toUpperCase() : 'IC';
+
 
   return (
     <div className="ic-root">
@@ -61,14 +118,16 @@ export default function InChargeDashboard() {
       {/* ── Sidebar ─────────────────────────────────────── */}
       <aside className={`ic-sidebar ${sidebarOpen ? 'ic-sidebar--open' : 'ic-sidebar--collapsed'}`}>
         <div className="ic-sidebar-brand">
-          <LogoMark variant="colored" showText={sidebarOpen} size={36} />
+          {sidebarOpen
+            ? <div style={{ transform: 'scale(0.48)', transformOrigin: 'left center', marginLeft: '-0.5rem' }}><Logo /></div>
+            : <LogoMark variant="colored" showText={false} size={36} />}
         </div>
 
         <nav className="ic-nav">
           {[
-            { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+            { id: 'dashboard',  icon: '📊', label: 'Dashboard' },
             { id: 'complaints', icon: '📋', label: 'Complaints' },
-            { id: 'resolved',   icon: '✅', label: 'Resolved' },
+            { id: 'profile',    icon: '👤', label: 'My Profile' },
             { id: 'analytics',  icon: '📈', label: 'Analytics' },
           ].map(item => (
             <button
@@ -84,11 +143,11 @@ export default function InChargeDashboard() {
 
         <div className="ic-sidebar-footer">
           <div className="ic-user-chip">
-            <div className="ic-user-avatar">IC</div>
+            <div className="ic-user-avatar">{initials}</div>
             {sidebarOpen && (
               <div className="ic-user-info">
-                <span className="ic-user-name">In-Charge</span>
-                <span className="ic-user-role">Block A • Floor 1-4</span>
+                <span className="ic-user-name">{profile.name}</span>
+                <span className="ic-user-role">{profile.designation || 'In-Charge'}</span>
               </div>
             )}
           </div>
@@ -131,7 +190,7 @@ export default function InChargeDashboard() {
 
           {/* Stat cards */}
           <div className="ic-stats-row">
-            {STAT_CARDS.map(s => (
+            {stats.map(s => (
               <div key={s.label} className="ic-stat-card">
                 <div className="ic-stat-icon" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
                 <div>
@@ -190,7 +249,7 @@ export default function InChargeDashboard() {
                   <div className="ic-col-complaint">
                     <span className="ic-complaint-id">{c.id}</span>
                     <span className="ic-complaint-title">{c.title}</span>
-                    <span className="ic-complaint-student">👤 {c.student}</span>
+                    <span className="ic-complaint-student">👤 {c.student?.name || 'Unknown'}</span>
                   </div>
                   <span className="ic-tag ic-tag-cat">{c.category}</span>
                   <div className="ic-col-loc">
@@ -219,7 +278,60 @@ export default function InChargeDashboard() {
               ))}
             </div>
           </div>
-
+          
+          {/* Profile Management Tab */}
+          {activeNav === 'profile' && (
+            <div className="ic-profile-view">
+               <div className="ic-table-card" style={{ padding: '2rem' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'2rem' }}>
+                    <h2 style={{ margin:0 }}>My Profile</h2>
+                    <button 
+                      className={`ic-action-btn ${editMode ? 'ic-action-btn--escalate' : 'ic-action-btn--progress'}`}
+                      onClick={() => setEditMode(!editMode)}
+                    >
+                      {editMode ? '✕ Cancel' : '✏️ Edit Profile'}
+                    </button>
+                  </div>
+                  
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'2rem' }}>
+                    {[
+                      { label: 'Full Name', key: 'name', icon: '👤' },
+                      { label: 'Employee ID', key: 'employee_id', icon: '🎫', readOnly: true },
+                      { label: 'Designation', key: 'designation', icon: '🏷️' },
+                      { label: 'Email', key: 'email', icon: '📧', readOnly: true },
+                      { label: 'Phone', key: 'phone', icon: '📱' },
+                      { label: 'Assigned Block', key: 'assigned_block', icon: '📍' },
+                    ].map(f => (
+                      <div key={f.key} style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+                        <label style={{ fontSize:'0.85rem', color:'#64748b', fontWeight:600 }}>{f.icon} {f.label}</label>
+                        {editMode && !f.readOnly ? (
+                          <input 
+                            style={{ padding:'0.75rem', borderRadius:'8px', border:'1px solid #e2e8f0', outline:'none' }}
+                            value={editProfile[f.key] || ''}
+                            onChange={e => setEditProfile({...editProfile, [f.key]: e.target.value})}
+                          />
+                        ) : (
+                          <div style={{ padding:'0.75rem', background:'#f8fafc', borderRadius:'8px', color:'#1e293b', fontWeight:500 }}>
+                            {profile[f.key] || 'Not set'}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {editMode && (
+                    <button 
+                      className="ic-action-btn ic-action-btn--resolve" 
+                      style={{ marginTop:'2rem', width:'100%', padding:'1rem' }}
+                      onClick={saveProfile}
+                      disabled={savingProfile}
+                    >
+                      {savingProfile ? 'Saving...' : '💾 Save Changes'}
+                    </button>
+                  )}
+               </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -238,7 +350,7 @@ export default function InChargeDashboard() {
             <div className="ic-modal-meta">
               <div className="ic-meta-item">
                 <span className="ic-meta-key">Student</span>
-                <span className="ic-meta-val">{selected.student} ({selected.rollNo})</span>
+                <span className="ic-meta-val">{selected.student?.name || 'Unknown'} ({selected.student?.roll_no || 'N/A'})</span>
               </div>
               <div className="ic-meta-item">
                 <span className="ic-meta-key">Location</span>

@@ -352,17 +352,24 @@ export default function SubmitComplaint() {
 
               <div className={`input-wrapper ${focusedField === 'block' ? 'focused' : ''}`}>
 
-                <input
-                  type="text"
+                <select
                   name="block"
                   value={formData.block}
                   onChange={handleInputChange}
                   onFocus={() => setFocusedField('block')}
                   onBlur={() => setFocusedField('')}
                   className="form-input"
-                  placeholder="e.g., Block A, Library, Cafeteria"
                   required
-                />
+                >
+                  <option value="">Select block / location…</option>
+                  {['A','B','C','D','E','F','G','H','I','J','K','L','M','N'].map(b => (
+                    <option key={b} value={`Block ${b}`}>Block {b}</option>
+                  ))}
+                  <option value="Library">Library</option>
+                  <option value="Mess Hall">Mess Hall</option>
+                  <option value="Auditorium">Auditorium</option>
+                  <option value="Sports Ground">Sports Ground</option>
+                </select>
 
                 <div className="input-icon">📍</div>
 

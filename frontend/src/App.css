@@ -16,7 +16,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: var(--color-bg-base);
   color: var(--color-dark-text);
-  padding-top: 80px; /* Account for fixed navbar */
 }
 
 #root {
